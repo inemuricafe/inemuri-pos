@@ -2014,6 +2014,15 @@ input[type="time"], input[type="date"], textarea, select {
 .ventas-layout { grid-template-columns:1fr 340px !important; }
 .total-amount { font-size:30px !important; }
 .numpad-btn { min-height:56px !important; font-size:19px !important; }
+
+/* v110: teclado y botón de venta — pulido de alineación/centrado */
+/* Centrar números e icono ⌫ vertical y horizontalmente dentro de cada tecla */
+.numpad-btn { display:flex !important; align-items:center !important; justify-content:center !important; line-height:1 !important; }
+/* El icono de borrar (⌫) al mismo tamaño visual que las demás teclas */
+.numpad-btn.numpad-del { font-size:19px !important; }
+/* Botón "Registrar venta" al ancho EXACTO del teclado (3 columnas), alineado con él
+   — el .numpad-wrap tiene 3px de padding por lado, así que se descuentan 6px */
+.cobrar-btn { width:calc(100% - 6px) !important; margin-left:3px !important; margin-right:3px !important; }
 </style>
 </head>
 <body>
