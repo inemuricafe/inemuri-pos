@@ -2043,7 +2043,7 @@ input[type="time"], input[type="date"], textarea, select {
     <!-- Barra de título -->
     <div id="win-title-bar">
       <div id="win-title-icon">☕</div>
-      <div id="win-title-text">Inemuri Café v5.3 — POS</div>
+      <div id="win-title-text">Inemuri Café v5.4 — POS</div>
       <div id="win-title-btns">
         <div class="win-ctrl-btn">_</div>
         <div class="win-ctrl-btn">□</div>
@@ -5910,7 +5910,7 @@ void main() {
           <div class="card-title">Orden actual</div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #808080;padding:4px 6px;gap:4px;">
             <button id="btn-ef" onclick="setMetodoPago('efectivo')"
-              style="padding:2px 6px;font-size:11px;cursor:pointer;font-weight:bold;min-height:28px;background:#a8a8a8;border:none;box-shadow:inset 2px 2px 0 #404040,inset -1px -1px 0 #fff;transform:translate(1px,1px);">
+              style="padding:2px 6px;font-size:11px;cursor:pointer;min-height:28px;background:#c0c0c0;border:none;box-shadow:inset -1px -1px 0 #404040,inset 1px 1px 0 #fff;">
               💵 Efectivo
             </button>
             <button id="btn-tar" onclick="setMetodoPago('tarjeta')"
@@ -6443,6 +6443,7 @@ let tareasHorasProactivos={};  // sección B — compartida
 let tareasHorasPorBarista={};  // {nombre: {idx: {hora,barista,color}}} — tareas personales
 let reporteEnviado=false,inventarioCerrado=false,primerCheckinHecho=false;
 let metodoPago='efectivo';
+let metodoElegido=false; // v111: el barista debe elegir explícitamente efectivo/tarjeta antes de cobrar (si total>0)
 let promoActiva=null; // {codigo, label, descuento, tipo}
 // precio de Latte para descuento de lealtad
 const PRECIO_LATTE=85;
@@ -6486,6 +6487,17 @@ function getNumBebidas(){
     return s + (CATS_BEBIDA.has(PROD_CAT[n]) ? d.qty : 0);
   }, 0);
 }
+// v111: precio (de menú, sin extras de leche) de la BEBIDA más cara de la orden. 0 si no hay bebidas.
+// Misma definición de "bebida" que getNumBebidas (CATS_BEBIDA), así los extras de leche no cuentan.
+function getPrecioBebidaMax(){
+  let max=0;
+  for(const n in orden){
+    if(CATS_BEBIDA.has(PROD_CAT[n]) && orden[n].precio>max) max=orden[n].precio;
+  }
+  return max;
+}
+// v111 (manual): un insumo está "Bajo" (entra a la lista de compras del día) solo si Quedan <= mínimo.
+function esInsumoBajo(val,min){ return !isNaN(val) && val<=min; }
 function activos(){return BARISTAS.filter(b=>turnos[b.nombre]&&!turnos[b.nombre].salida);}
 // Si solo hay un barista en turno, seleccionarlo automáticamente (p.ej. para permitir el cierre)
 function autoSeleccionarBaristaUnico(){
@@ -6498,6 +6510,7 @@ function esUltimoActivo(n){const a=activos();return a.length===1&&a[0].nombre===
 function tareasDeHoy(){const dia=new Date().getDay();return TAREAS.filter(t=>t.dias.includes(dia));}
 function setMetodoPago(m){
   metodoPago=m;
+  metodoElegido=true; // v111: método elegido explícitamente por el barista
   const bef=document.getElementById('btn-ef');
   const btar=document.getElementById('btn-tar');
   const sef=document.getElementById('ef-section');
@@ -6515,6 +6528,28 @@ function setMetodoPago(m){
     const tt=document.getElementById('tar-total');
     if(tt)tt.textContent='$'+getTotalFinal();
   }
+  actualizarBotonCobrar();
+}
+// v111: habilita "Registrar venta" solo si hay items y (total==0 o ya se eligió método de pago)
+function actualizarBotonCobrar(){
+  const btn=document.getElementById('cobrar-btn');
+  if(!btn)return;
+  const hayItems=Object.keys(orden).length>0;
+  if(!hayItems){ btn.disabled=true; return; }
+  const requiereMetodo=getTotalFinal()>0;
+  btn.disabled = requiereMetodo && !metodoElegido;
+}
+// v111: estado por defecto del método de pago (sin elegir): vista de efectivo visible, ningún botón resaltado
+function resetMetodoPago(){
+  metodoElegido=false;
+  metodoPago='efectivo';
+  const bef=document.getElementById('btn-ef');
+  const btar=document.getElementById('btn-tar');
+  [bef,btar].forEach(b=>{if(b){b.classList.remove('metodo-activo');b.style.transform='';}});
+  const sef=document.getElementById('ef-section');
+  const star=document.getElementById('tar-section');
+  if(sef)sef.style.display='block';
+  if(star)star.style.display='none';
 }
 function requiereCheckin(){return !baristaActivo||!turnos[baristaActivo];}
 function esUltimoBaristaEnTurno(){
@@ -6748,6 +6783,52 @@ function cerrarInventario(){
     renderTurnoCards();
   });
   document.getElementById('inv-cancel').addEventListener('click',()=>overlay.remove());
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+}
+
+// ── CERRAR INVENTARIO GLOBAL (v111) ──
+// Manual: en el inventario global TODOS los campos "Quedan" deben quedar llenos para poder confirmar.
+// Si falta alguno, se bloquea y se avisa. (Funciona genéricamente con cualquier lista de insumos global.)
+function cerrarInventarioGlobal(){
+  const inputs=Array.from(document.querySelectorAll('#inv-panel-global .ins-qty'));
+  if(!inputs.length){ mostrarToast('No hay insumos en el inventario global',2500); return; }
+  let faltan=0, primerVacio=null;
+  inputs.forEach(inp=>{
+    const raw=(inp.value||'').trim();
+    const lleno = raw!=='' && !isNaN(parseFloat(raw));
+    if(!lleno){
+      faltan++;
+      if(!primerVacio)primerVacio=inp;
+      inp.style.boxShadow='inset 0 0 0 2px #cc0000';
+    } else {
+      inp.style.boxShadow='';
+    }
+  });
+  if(faltan>0){
+    mostrarToast('Faltan '+faltan+' campo(s) por llenar. El inventario global exige TODOS los campos.',3400);
+    if(primerVacio){ try{primerVacio.scrollIntoView({block:'center'});}catch(e){} }
+    return;
+  }
+  // Todos llenos → confirmar
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.65);z-index:500;display:flex;align-items:center;justify-content:center;';
+  const box=document.createElement('div');
+  box.style.cssText='background:#c0c0c0;border:none;box-shadow:inset -1px -1px 0 #404040,inset 1px 1px 0 #fff,4px 4px 0 rgba(0,0,0,.3);width:340px;';
+  box.innerHTML='<div style="background:linear-gradient(to right, #1060c0 0%, #0030a0 50%, #001880 100%);padding:4px 8px;color:#fff;font-family:\'MS Sans Serif\',Tahoma,sans-serif;font-size:11px;font-weight:bold;height:22px;display:flex;align-items:center;">Confirmar inventario global</div>'
+    +'<div style="padding:16px 20px;font-size:13px;color:#555;line-height:1.6;">Los '+inputs.length+' insumos tienen su conteo registrado. Al confirmar, quedará registrada la revisión semanal.</div>'
+    +'<div style="padding:0 20px 16px;display:flex;gap:8px;">'
+    +'<button id="invg-cancel" style="flex:1;padding:9px;border:none;background:#c0c0c0;box-shadow:inset -1px -1px 0 #404040,inset 1px 1px 0 #fff;font-size:12px;font-weight:700;cursor:pointer;text-transform:uppercase;">Cancelar</button>'
+    +'<button id="invg-confirm" style="flex:2;padding:9px;color:#000;border:none;background:#c0c0c0;box-shadow:inset -1px -1px 0 #404040,inset 1px 1px 0 #fff;font-size:12px;font-weight:700;cursor:pointer;text-transform:uppercase;">Sí, confirmar global</button>'
+    +'</div>';
+  overlay.appendChild(box);document.body.appendChild(overlay);
+  document.getElementById('invg-confirm').addEventListener('click',()=>{
+    overlay.remove();
+    const hora=now();
+    const btn=document.getElementById('inv-global-cerrar-btn');if(btn)btn.style.display='none';
+    const badge=document.getElementById('inv-global-cerrado-badge');if(badge)badge.style.display='flex';
+    const h=document.getElementById('inv-global-cerrado-hora');if(h)h.textContent=hora+' · '+(baristaActivo||'—');
+  });
+  document.getElementById('invg-cancel').addEventListener('click',()=>overlay.remove());
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
 }
 
@@ -7676,9 +7757,11 @@ function seleccionarPromo(codigo){
 
   // Calcular descuento
   let descuento=0;
-  const total=getTotal();
   if(codigo==='lealtad'){
-    descuento=Math.min(PRECIO_LATTE, total);
+    // v111: el descuento es el precio de la BEBIDA más cara de la orden, con tope de un Latte ($85)
+    const maxBeb=getPrecioBebidaMax();
+    if(maxBeb<=0){ mostrarToast('Agrega una bebida antes de aplicar Lealtad',2200); return; }
+    descuento=Math.min(PRECIO_LATTE, maxBeb);
   }
 
   promoActiva={...p, descuento};
@@ -8077,6 +8160,7 @@ function cancelarCorreccion(){
   let b=document.getElementById('correccion-banner');if(b)b.remove();
   let cb=document.getElementById('cobrar-btn');if(cb)cb.textContent='Registrar venta';
   const pc=document.getElementById('pago-cliente');if(pc)pc.value='';
+  resetMetodoPago(); // v111
   renderOrden();
   mostrarToast('Corrección cancelada',2000);
 }
@@ -8303,6 +8387,7 @@ function init(){
   initNumpad();
   initNumpadFlotante();
   document.getElementById('cobrar-btn').addEventListener('click',cobrar);
+  resetMetodoPago(); // v111: arranca sin método elegido (ningún botón resaltado)
   setTimeout(initPestanas,0);
   document.getElementById('btn-add-pago').addEventListener('click',()=>{addPago();initRipples();});
   document.getElementById('modal-close').addEventListener('click',cerrarModal);
@@ -8310,6 +8395,7 @@ function init(){
   document.getElementById('modal-confirm').addEventListener('click',confirmarEnvio);
   document.getElementById('send-cierre').addEventListener('click',abrirModalReporte);
   document.getElementById('inv-cerrar-btn').addEventListener('click',cerrarInventario);
+  { const gb=document.getElementById('inv-global-cerrar-btn'); if(gb) gb.addEventListener('click',cerrarInventarioGlobal); } // v111
   // Event delegation para cancelar ventas (funciona con DOM dinámico)
   document.getElementById('ventas-list').addEventListener('click',function(e){
     let btn=e.target.closest('.cancel-venta-btn');
@@ -8663,6 +8749,7 @@ function addItem(n,p){
   orden[n].qty++;
   // Si la bebida requiere leche, agregar un slot vacío
   if(BEBIDAS_CON_LECHE.has(n)) orden[n].leches.push(null);
+  reajustarLealtad(); // v111: recalcular descuento de lealtad si entró una bebida más cara
   renderOrden();
   const ta=document.getElementById('total-display');
   if(ta){ta.style.transform='scale(1.1)';ta.style.transition='transform .1s';setTimeout(()=>{ta.style.transform='';},120);}
@@ -8677,6 +8764,7 @@ function removeItem(n){
     if(orden[n].qty<=0)delete orden[n];
   }
   reajustarTazaPropia();
+  reajustarLealtad(); // v111
   renderOrden();
 }
 // Si hay Taza Propia activa y se redujeron las bebidas, retopar el descuento (o quitarlo si ya no hay bebidas)
@@ -8687,6 +8775,19 @@ function reajustarTazaPropia(){
   const qty=Math.min(promoActiva.cantidadTazas||1, maxB);
   if(qty!==promoActiva.cantidadTazas){
     promoActiva={...promoActiva, cantidadTazas:qty, descuento:5*qty};
+    actualizarDisplayPromo();
+    calcularTotalConPromo&&calcularTotalConPromo();
+  }
+}
+// v111: si hay Lealtad activa, recalcular el descuento = min($85, precio de la bebida más cara).
+// Si ya no quedan bebidas en la orden, se quita la promo.
+function reajustarLealtad(){
+  if(typeof promoActiva==='undefined'||!promoActiva||promoActiva.codigo!=='lealtad')return;
+  const maxBeb=getPrecioBebidaMax();
+  if(maxBeb<=0){ promoActiva=null; actualizarDisplayPromo(); calcularTotalConPromo&&calcularTotalConPromo(); return; }
+  const desc=Math.min(PRECIO_LATTE, maxBeb);
+  if(desc!==promoActiva.descuento){
+    promoActiva={...promoActiva, descuento:desc};
     actualizarDisplayPromo();
     calcularTotalConPromo&&calcularTotalConPromo();
   }
@@ -8820,7 +8921,7 @@ function renderOrden(){
   }));
   document.getElementById('total-display').textContent='$'+getTotalFinal();
   if(metodoPago==='tarjeta'){const tt=document.getElementById('tar-total');if(tt)tt.textContent='$'+getTotalFinal();}
-  document.getElementById('cobrar-btn').disabled=false;
+  actualizarBotonCobrar(); // v111: exige método de pago si total>0
   calcularCambio();
   actualizarBordeLeches();
 }
@@ -8997,7 +9098,7 @@ function cobrar(){
         folio: orig.folio+'C',
         resumen: items.map(([n,d])=>d.qty>1?d.qty+'× '+n:n).join(', '),
         total, barista:baristaActivo, color:colorOf(baristaActivo),
-        metodo: promoActiva?'promo':metodoPago,
+        metodo: total===0?'promo':metodoPago, // v111: 'promo' SOLO si la venta queda en $0; si no, el método real
         detalle: JSON.parse(JSON.stringify(orden)),
         pagoCliente,
         cliente:clientePestanaActiva(),
@@ -9010,6 +9111,7 @@ function cobrar(){
     let cb2=document.getElementById('cobrar-btn');if(cb2)cb2.textContent='Registrar venta';
     promoActiva=null;actualizarDisplayPromo();
     orden={};document.getElementById('pago-cliente').value='';document.getElementById('cambio-display').textContent='—';document.getElementById('cambio-display').className='cambio-result-num';
+    resetMetodoPago(); // v111: la próxima venta vuelve a exigir elegir método
     renderOrden();renderVentas();
     if(window._numpadReset)window._numpadReset();
     guardarSesionDebounced('ventas', {lista: ventas});
@@ -9018,9 +9120,10 @@ function cobrar(){
     return;
   }
   ventaCount++;
-  ventas.push({folio:folio(ventaCount),resumen:items.map(([n,d])=>d.qty>1?d.qty+'× '+n:n).join(', '),total,barista:baristaActivo,color:colorOf(baristaActivo),metodo:promoActiva?'promo':metodoPago,detalle:JSON.parse(JSON.stringify(orden)),pagoCliente,cliente:clientePestanaActiva(),...promoData});
+  ventas.push({folio:folio(ventaCount),resumen:items.map(([n,d])=>d.qty>1?d.qty+'× '+n:n).join(', '),total,barista:baristaActivo,color:colorOf(baristaActivo),metodo:total===0?'promo':metodoPago,detalle:JSON.parse(JSON.stringify(orden)),pagoCliente,cliente:clientePestanaActiva(),...promoData});
   promoActiva=null;actualizarDisplayPromo();
   orden={};document.getElementById('pago-cliente').value='';document.getElementById('cambio-display').textContent='—';document.getElementById('cambio-display').className='cambio-result-num';
+  resetMetodoPago(); // v111: la próxima venta vuelve a exigir elegir método
   renderOrden();renderVentas();
   const badge=document.getElementById('count-ventas');badge.classList.remove('anim-pop');void badge.offsetWidth;badge.classList.add('anim-pop');
   // Resetear teclado numérico
@@ -9047,6 +9150,8 @@ function renderVentas(){
     const mbLabel=metodo==='tarjeta'?'TARJETA':metodo==='promo'?'PROMO: '+(v.promo||''):'EFECTIVO';
     const cbadge=(v.cliente?'<span style="font-size:9px;background:#604080;color:#fff;font-weight:700;padding:2px 7px;margin-left:6px;vertical-align:1px;">CUENTA: '+escPest(v.cliente)+'</span>':'');
     const mb='<span style="font-size:9px;background:'+mbBg+';color:#fff;padding:1px 4px;margin-left:4px;font-weight:bold;">'+mbLabel+'</span>';
+    // v111: chip de PROMO independiente del método real (cuando la venta NO quedó como 'promo'/$0 pero sí hubo descuento)
+    const pb=(v.promo&&metodo!=='promo')?'<span style="font-size:9px;background:#800000;color:#fff;padding:1px 4px;margin-left:4px;font-weight:bold;">PROMO: '+v.promo+'</span>':'';
     const dsc=v.descuento?'<span style="font-size:9px;color:#cc0000;margin-left:3px;font-weight:bold;">-$'+v.descuento+'</span>':'';
     const cBadge=v.cancelada?'<span style="font-size:9px;background:#cc0000;color:#fff;padding:1px 4px;margin-left:3px;font-weight:bold;">CANCELADA</span>':'';
     const bloqueado=v.cancelada||v.corregida;
@@ -9058,7 +9163,7 @@ function renderVentas(){
       return '<div class="venta-item" style="opacity:.6;border-left:3px solid #888;padding-left:6px;">'
         +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">'
         +'<span style="font-size:9px;background:#888;color:#fff;padding:1px 5px;font-weight:bold;">ORIGINAL — reemplazada</span>'
-        +'<span class="venta-folio" style="color:#888;font-size:11px;"># '+v.folio+(v.barista?' · '+v.barista.toUpperCase():'')+'</span>'+mb+cbadge+'</div>'
+        +'<span class="venta-folio" style="color:#888;font-size:11px;"># '+v.folio+(v.barista?' · '+v.barista.toUpperCase():'')+'</span>'+mb+pb+cbadge+'</div>'
         +'<div class="venta-det"><span class="venta-productos" style="text-decoration:line-through;color:#999;">'+v.resumen+'</span>'
         +'<span class="venta-monto" style="text-decoration:line-through;color:#999;">$'+v.total+'</span></div>'
         +(v.corregidaPor?'<div style="font-size:10px;color:#888;">Corregida por '+v.corregidaPor+'</div>':'')
@@ -9069,7 +9174,7 @@ function renderVentas(){
       return '<div class="venta-item" style="border-left:3px solid #1a5a1a;padding-left:6px;background:#f0f8f0;">'
         +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">'
         +'<span style="font-size:9px;background:#1a5a1a;color:#fff;padding:1px 5px;font-weight:bold;">↳ CORRECCIÓN de #'+v.esCorreccionDe+'</span>'
-        +'<span class="venta-folio" style="color:'+(v.color||'#000')+';font-size:11px;">'+(v.barista?v.barista.toUpperCase():'')+'</span>'+mb+dsc+cBadge+'</div>'
+        +'<span class="venta-folio" style="color:'+(v.color||'#000')+';font-size:11px;">'+(v.barista?v.barista.toUpperCase():'')+'</span>'+mb+pb+dsc+cBadge+'</div>'
         +'<div class="venta-det"><span class="venta-productos">'+v.resumen+'</span><span class="venta-monto">$'+v.total+'</span></div>'
         +(v.cancelada&&v.motivoCancelacion?'<div style="font-size:10px;color:#cc0000;">Motivo: '+v.motivoCancelacion+(v.canceladaPor?' — '+v.canceladaPor:'')+'</div>':'')
         +(bloqueado?'':'<div style="display:flex;margin-top:3px;">'+cBtn+corrBtn+'</div>')
@@ -9078,7 +9183,7 @@ function renderVentas(){
     // ── VENTA NORMAL ──
     const cStyle=v.cancelada?'opacity:.5;':'';
     const cMotivo=v.cancelada&&v.motivoCancelacion?'<div style="font-size:10px;color:#cc0000;">Motivo: '+v.motivoCancelacion+(v.canceladaPor?' — '+v.canceladaPor:'')+'</div>':'';
-    return '<div class="venta-item" style="'+cStyle+'"><div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;"><div style="width:7px;height:7px;background:'+(v.color||'#000')+';border:1px solid #000;flex-shrink:0;"></div><span class="venta-folio" style="color:'+(v.color||'#000')+'"># '+v.folio+(v.barista?' · '+v.barista.toUpperCase():'')+'</span>'+mb+dsc+cBadge+'</span>'+cBtn+corrBtn+'</div><div class="venta-det"><span class="venta-productos">'+v.resumen+'</span><span class="venta-monto">$'+v.total+'</span></div>'+cMotivo+'</div>';  }).join('');;
+    return '<div class="venta-item" style="'+cStyle+'"><div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;"><div style="width:7px;height:7px;background:'+(v.color||'#000')+';border:1px solid #000;flex-shrink:0;"></div><span class="venta-folio" style="color:'+(v.color||'#000')+'"># '+v.folio+(v.barista?' · '+v.barista.toUpperCase():'')+'</span>'+mb+pb+dsc+cBadge+'</span>'+cBtn+corrBtn+'</div><div class="venta-det"><span class="venta-productos">'+v.resumen+'</span><span class="venta-monto">$'+v.total+'</span></div>'+cMotivo+'</div>';  }).join('');;
   const vigentes=ventas.filter(v=>!v.cancelada&&!v.corregida);
   const t=vigentes.reduce((s,v)=>s+v.total,0);
   const tEf=vigentes.filter(v=>v.metodo!=='tarjeta').reduce((s,v)=>s+v.total,0);
@@ -9233,7 +9338,7 @@ function renderInsumos(){
       const i=inp.id.replace('ins-qty-',''),min=parseFloat(inp.dataset.min),raw=inp.value.trim(),st=document.getElementById('ins-st-'+i);
       if(!raw){st.textContent='—';st.className='ins-badge';inp.classList.remove('ins-low');return;}
       const val=parseFloat(raw);
-      if(!isNaN(val)&&val<=min){st.textContent='Bajo';st.className='ins-badge ins-warn';inp.classList.add('ins-low');}
+      if(esInsumoBajo(val,min)){st.textContent='Bajo';st.className='ins-badge ins-warn';inp.classList.add('ins-low');}
       else{st.textContent='OK';st.className='ins-badge ins-ok';inp.classList.remove('ins-low');}
     });
   });
@@ -9260,7 +9365,7 @@ function renderInsumosGlobal(){
       const i=inp.id.replace('insg-qty-',''),min=parseFloat(inp.dataset.min),raw=inp.value.trim(),st=document.getElementById('insg-st-'+i);
       if(!raw){st.textContent='—';st.className='ins-badge';inp.classList.remove('ins-low');return;}
       const val=parseFloat(raw);
-      if(!isNaN(val)&&val<=min){st.textContent='Bajo';st.className='ins-badge ins-warn';inp.classList.add('ins-low');}
+      if(esInsumoBajo(val,min)){st.textContent='Bajo';st.className='ins-badge ins-warn';inp.classList.add('ins-low');}
       else{st.textContent='OK';st.className='ins-badge ins-ok';inp.classList.remove('ins-low');}
     });
   });
@@ -9557,7 +9662,8 @@ function buildReporte(checkoutHora){
   const loteP=parseFloat(document.getElementById('lote-propinas').value)||0;
   const movRep=leerMovimientos();
   const fondo=fondoAnteriorVal();
-  const insLow=[];INSUMOS.forEach((ins,i)=>{const el=document.getElementById('ins-qty-'+i);if(!el)return;const raw=el.value.trim();if(!raw)return;const val=parseFloat(raw);if(!isNaN(val)&&val<=ins.min)insLow.push({ins,qty:raw});});
+  // v111 (manual): la lista de compras del día solo incluye insumos "Bajo" (Quedan <= mínimo). Los OK no se agregan.
+  const insLow=[];INSUMOS.forEach((ins,i)=>{const el=document.getElementById('ins-qty-'+i);if(!el)return;const raw=el.value.trim();if(!raw)return;const val=parseFloat(raw);if(esInsumoBajo(val,ins.min))insLow.push({ins,qty:raw});});
   const nota=document.getElementById('nota-texto').value;
   const hoy=tareasDeHoy();
   const thPro=tareasHorasProactivos;
@@ -9929,7 +10035,7 @@ window.addEventListener('focus', verificarCambioDia);
   <div id="win-taskbar">
     <div id="win-start-btn"><span style="font-size:13px;">🪟</span><span>Inicio</span></div>
     <div style="width:1px;height:20px;background:#808080;box-shadow:1px 0 0 #fff;margin:0 2px;flex-shrink:0;"></div>
-    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v5.3</span></div>
+    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v5.4</span></div>
     <div style="margin-left:auto;display:flex;align-items:center;">
       <div id="win-taskbar-clock" style="padding:0 8px;height:22px;display:flex;align-items:center;gap:5px;font-size:11px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span>🔊</span><span id="win-clock">00:00</span></div>
       <div id="win-taskbar-climate" style="padding:0 8px;height:22px;display:flex;align-items:center;font-size:11px;gap:3px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span id="win-weather">🌤 —°C</span></div>
