@@ -3,6 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1194, initial-scale=1.0, maximum-scale=1.0">
+<!-- v110 · Cambio 3 — Usabilidad en teléfono: SOLO en pantallas chicas (teléfonos)
+     renderiza el MISMO layout del iPad (ancho de diseño 1194px) a escala reducida,
+     con pinch-zoom habilitado. En iPad/pantallas grandes NO se toca el viewport
+     (queda EXACTAMENTE igual: width=1194, maximum-scale=1.0, sin zoom). -->
+<script>
+window.__inemuriPhoneViewport=function(sw){
+  var DESIGN_W=1194; // ancho base del POS (= viewport del iPad)
+  if(sw && sw<768){  // teléfono → encajar el layout completo y permitir zoom
+    var vp=document.querySelector('meta[name="viewport"]');
+    if(!vp){vp=document.createElement('meta');vp.setAttribute('name','viewport');document.head.appendChild(vp);}
+    vp.setAttribute('content','width='+DESIGN_W+', user-scalable=yes, maximum-scale=10');
+    return 'phone:'+DESIGN_W;
+  }
+  return 'unchanged'; // iPad / pantalla grande → no se toca
+};
+try{ window.__inemuriPhoneViewport(Math.min(window.screen.width||9999, window.screen.height||9999)); }catch(e){}
+</script>
 
 <!-- ── PWA / Home Screen App ── -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -5900,7 +5917,7 @@ void main() {
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:6px;border:1px solid #808080;overflow:hidden;">
             <div style="padding:8px 12px;border-right:var(--border-light);">
               <div style="font-size:9px;font-weight:700;color:var(--ink-mid);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;">Efectivo</div>
-              <div id="numpad-display-inline" style="font-size:20px;font-weight:700;color:var(--ink);">—</div>
+              <div id="numpad-display-inline" style="font-size:20px;font-weight:700;color:var(--ink);min-height:24px;"></div>
             </div>
             <div style="padding:8px 12px;background:var(--cream-dark);">
               <div style="font-size:9px;font-weight:700;color:var(--ink-mid);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;">Cambio</div>
@@ -5910,7 +5927,6 @@ void main() {
           <input type="hidden" id="pago-cliente"/>
           <!-- Teclado numérico para "Efectivo" -->
           <div class="numpad-wrap">
-            <div class="numpad-display" id="numpad-display">—</div>
             <div class="numpad-grid">
               <div class="numpad-btn" data-val="7">7</div>
               <div class="numpad-btn" data-val="8">8</div>
@@ -7257,16 +7273,13 @@ function mostrarModalAviso(nombre){
 function initNumpad(){
   let valor='';
   function updateDisplay(){
-    const disp=document.getElementById('numpad-display');
     const dispInline=document.getElementById('numpad-display-inline');
     const inp=document.getElementById('pago-cliente');
     if(!valor){
-      if(disp){disp.textContent='—';disp.style.color='#bbb';}
-      if(dispInline){dispInline.textContent='—';dispInline.style.color='#bbb';}
+      if(dispInline){dispInline.textContent='';dispInline.style.color='var(--ink)';}
       inp.value='';
     } else {
       const fmt='$'+parseInt(valor).toLocaleString('es-MX');
-      if(disp){disp.textContent=fmt;disp.style.color='var(--ink)';}
       if(dispInline){dispInline.textContent=fmt;dispInline.style.color='var(--ink)';}
       inp.value=valor;
     }
@@ -7293,8 +7306,7 @@ function initNumpad(){
   const origCobrar=window._origCobrar;
   window._numpadReset=function(){
     valor='';
-    let d=document.getElementById('numpad-display');if(d){d.textContent='—';d.style.color='#bbb';}
-    let di=document.getElementById('numpad-display-inline');if(di){di.textContent='—';di.style.color='#bbb';}
+    let di=document.getElementById('numpad-display-inline');if(di){di.textContent='';di.style.color='var(--ink)';}
     let pc=document.getElementById('pago-cliente');if(pc)pc.value='';
     let cd=document.getElementById('cambio-display');if(cd){cd.textContent='—';cd.className='cambio-result-num';}
   };
