@@ -8372,6 +8372,87 @@ function ocultarNumpadFlotante(){
   if(_npfTarget){try{_npfTarget.blur();}catch(e){}}
   _npfTarget=null;
 }
+
+// ── v111: MENÚ DE INICIO Win98 + ventana flotante del Manual ──
+// Accesos directos del menú. Para agregar más: { icono:'🔧', label:'…', accion:funcion }  (o usar {sep:true} para separador)
+const START_MENU_ITEMS=[
+  { icono:'📖', label:'Manual de Usuario', accion:abrirManual }
+];
+function renderStartMenu(){
+  const cont=document.getElementById('wsm-items'); if(!cont)return;
+  cont.innerHTML=START_MENU_ITEMS.map(function(it,i){
+    if(it.sep) return '<div class="wsm-sep"></div>';
+    return '<div class="wsm-item" data-idx="'+i+'"><span class="wsm-ico">'+it.icono+'</span><span class="wsm-label">'+it.label+'</span></div>';
+  }).join('');
+  cont.querySelectorAll('.wsm-item').forEach(function(el){
+    el.addEventListener('click',function(){
+      const idx=parseInt(el.getAttribute('data-idx'),10);
+      cerrarStartMenu();
+      const a=START_MENU_ITEMS[idx]&&START_MENU_ITEMS[idx].accion;
+      if(typeof a==='function')a();
+    });
+  });
+}
+function abrirStartMenu(){ const m=document.getElementById('win-start-menu'); if(!m)return; renderStartMenu(); m.classList.add('open'); const b=document.getElementById('win-start-btn'); if(b)b.classList.add('active-start'); }
+function cerrarStartMenu(){ const m=document.getElementById('win-start-menu'); if(m)m.classList.remove('open'); const b=document.getElementById('win-start-btn'); if(b)b.classList.remove('active-start'); }
+function toggleStartMenu(){ const m=document.getElementById('win-start-menu'); if(!m)return; if(m.classList.contains('open'))cerrarStartMenu(); else abrirStartMenu(); }
+function initStartMenu(){
+  // Delegación en document: el botón Inicio (#win-start-btn) se parsea DESPUÉS de init(),
+  // así que no se puede enganchar por referencia directa. La delegación funciona sin importar el orden.
+  document.addEventListener('click',function(e){
+    if(e.target.closest('#win-start-btn')){ e.stopPropagation(); toggleStartMenu(); }
+  });
+  // Cerrar al hacer clic fuera del menú o del botón Inicio
+  document.addEventListener('pointerdown',function(e){
+    const m=document.getElementById('win-start-menu');
+    if(!m||!m.classList.contains('open'))return;
+    if(e.target.closest('#win-start-menu')||e.target.closest('#win-start-btn'))return;
+    cerrarStartMenu();
+  });
+}
+// Ventana flotante del Manual (iframe al HTML self-contained en assets/manual/)
+function construirManualWindow(){
+  const w=document.createElement('div'); w.id='manual-window';
+  w.innerHTML='<div id="manual-titlebar"><span id="manual-title-txt">📖 Manual de Usuario — Inemuri POS</span>'
+    +'<button id="manual-x" class="modal-x-btn" type="button" title="Cerrar">✕</button></div>'
+    +'<div id="manual-body"><iframe id="manual-iframe" src="assets/manual/manual_pos_inemuri.html" title="Manual de Usuario — Inemuri POS"></iframe></div>';
+  document.body.appendChild(w);
+  w.querySelector('#manual-x').addEventListener('click',cerrarManual);
+  // Arrastre por la barra de título (dedo o mouse), mismo patrón que el numpad flotante
+  (function(){
+    const drag=w.querySelector('#manual-titlebar');
+    let dragging=false,sx=0,sy=0,ox=0,oy=0;
+    drag.addEventListener('pointerdown',function(ev){
+      if(ev.target.closest('#manual-x'))return;
+      dragging=true; try{drag.setPointerCapture(ev.pointerId);}catch(e){}
+      const r=w.getBoundingClientRect();
+      w.style.left=r.left+'px'; w.style.top=r.top+'px';
+      sx=ev.clientX; sy=ev.clientY; ox=r.left; oy=r.top;
+    });
+    drag.addEventListener('pointermove',function(ev){
+      if(!dragging)return;
+      let nl=ox+(ev.clientX-sx), nt=oy+(ev.clientY-sy);
+      nl=Math.max(0,Math.min(window.innerWidth-w.offsetWidth,nl));
+      nt=Math.max(0,Math.min(window.innerHeight-w.offsetHeight,nt));
+      w.style.left=nl+'px'; w.style.top=nt+'px';
+    });
+    const end=function(){dragging=false;};
+    drag.addEventListener('pointerup',end);
+    drag.addEventListener('pointercancel',end);
+  })();
+  return w;
+}
+function abrirManual(){
+  let w=document.getElementById('manual-window');
+  if(!w) w=construirManualWindow();
+  w.classList.add('open');
+  // Centrar al abrir
+  const l=Math.max(4,(window.innerWidth-w.offsetWidth)/2);
+  const t=Math.max(4,(window.innerHeight-w.offsetHeight)/2-12);
+  w.style.left=l+'px'; w.style.top=t+'px';
+}
+function cerrarManual(){ const w=document.getElementById('manual-window'); if(w)w.classList.remove('open'); }
+
 // ── INIT ──
 function init(){
   if(restaurarBackup()){
@@ -8388,6 +8469,7 @@ function init(){
   initNumpadFlotante();
   document.getElementById('cobrar-btn').addEventListener('click',cobrar);
   resetMetodoPago(); // v111: arranca sin método elegido (ningún botón resaltado)
+  initStartMenu(); // v111: menú de Inicio Win98 + accesos directos
   setTimeout(initPestanas,0);
   document.getElementById('btn-add-pago').addEventListener('click',()=>{addPago();initRipples();});
   document.getElementById('modal-close').addEventListener('click',cerrarModal);
@@ -10042,6 +10124,36 @@ window.addEventListener('focus', verificarCambioDia);
       <div id="win-taskbar-clock" style="padding:0 8px;height:22px;display:flex;align-items:center;gap:5px;font-size:11px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span>🔊</span><span id="win-clock">00:00</span></div>
       <div id="win-taskbar-climate" style="padding:0 8px;height:22px;display:flex;align-items:center;font-size:11px;gap:3px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span id="win-weather">🌤 —°C</span></div>
     </div>
+  </div>
+
+  <!-- v111: MENÚ DE INICIO Win98 + ventana flotante del Manual -->
+  <style id="v111-startmenu-css">
+    #win-start-menu{ position:fixed; left:2px; bottom:28px; z-index:9500; display:none; background:#c0c0c0;
+      box-shadow: inset -1px -1px 0 #404040, inset 1px 1px 0 #dfdfdf, inset -2px -2px 0 #808080, inset 2px 2px 0 #fff, 3px 3px 0 rgba(0,0,0,.45);
+      border:1px solid #000; }
+    #win-start-menu.open{ display:flex; }
+    #win-start-menu .wsm-banner{ width:30px; background:linear-gradient(to bottom,#08137a 0%,#000080 45%,#1084d0 100%); display:flex; align-items:flex-end; justify-content:center; padding:10px 0; flex:0 0 auto; }
+    #win-start-menu .wsm-banner-txt{ writing-mode:vertical-rl; transform:rotate(180deg); color:#fff; font-weight:900; font-size:15px; letter-spacing:2px; font-family:var(--w-font); white-space:nowrap; text-shadow:1px 1px 0 rgba(0,0,0,.4); }
+    #win-start-menu .wsm-banner-txt b{ color:#d8d8d8; font-weight:400; }
+    #win-start-menu .wsm-items{ display:flex; flex-direction:column; padding:3px; min-width:208px; }
+    #win-start-menu .wsm-item{ display:flex; align-items:center; gap:11px; padding:7px 22px 7px 10px; cursor:pointer; font-family:var(--w-font); font-size:13px; color:#000; user-select:none; }
+    #win-start-menu .wsm-item:hover{ background:#000080; color:#fff; }
+    #win-start-menu .wsm-ico{ font-size:18px; width:22px; text-align:center; flex:0 0 auto; }
+    #win-start-menu .wsm-sep{ height:0; border-top:1px solid #808080; border-bottom:1px solid #fff; margin:3px 6px; }
+    #win-start-btn.active-start{ box-shadow: inset 1px 1px 0 #0a0a0a, inset -1px -1px 0 #ffffff, inset 2px 2px 0 #808080, inset -2px -2px 0 #dfdfdf !important; }
+
+    #manual-window{ position:fixed; z-index:9600; display:none; width:780px; max-width:94vw; height:600px; max-height:82vh; background:#c0c0c0; flex-direction:column;
+      box-shadow: inset -1px -1px 0 #404040, inset 1px 1px 0 #dfdfdf, inset -2px -2px 0 #808080, inset 2px 2px 0 #fff, 5px 5px 0 rgba(0,0,0,.45); border:1px solid #000; }
+    #manual-window.open{ display:flex; }
+    #manual-window #manual-titlebar{ height:24px; background:linear-gradient(to right,#1060c0 0%,#0030a0 50%,#001880 100%); display:flex; align-items:center; justify-content:space-between; padding:0 4px 0 8px; cursor:move; touch-action:none; user-select:none; flex:0 0 auto; }
+    #manual-window #manual-title-txt{ color:#fff; font-size:12px; font-weight:bold; font-family:var(--w-font); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #manual-window #manual-x{ width:20px; height:18px; flex:0 0 auto; background:#c0c0c0; border:none; box-shadow:inset -1px -1px 0 #404040,inset 1px 1px 0 #fff; font-size:11px; font-weight:bold; cursor:pointer; }
+    #manual-window #manual-body{ flex:1 1 auto; overflow:hidden; padding:3px; background:#c0c0c0; }
+    #manual-window #manual-iframe{ width:100%; height:100%; border:none; background:#fff; box-shadow:inset 1px 1px 0 #808080, inset -1px -1px 0 #fff; }
+  </style>
+  <div id="win-start-menu">
+    <div class="wsm-banner"><span class="wsm-banner-txt">Inemuri&nbsp;<b>POS</b></span></div>
+    <div class="wsm-items" id="wsm-items"></div>
   </div>
 </body>
 </html>
