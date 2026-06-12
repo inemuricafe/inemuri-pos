@@ -8978,11 +8978,13 @@ function cerrarPestana(id){
   else{guardarPestanas();renderPestanas();}
 }
 function cerrarPestanaTrasRegistro(){
+  // v111: tras registrar una venta, cerrar la cuenta cobrada y abrir SIEMPRE una cuenta nueva y vacía
+  // (antes saltaba a pestanas[0] = la primera, lo que provocaba registrar bebidas en una cuenta vieja).
   const id=pestanaActiva;
-  pestanas=pestanas.filter(x=>x.id!==id);
-  pestanaActiva=null;
-  if(!pestanas.length){nuevaPestana();}
-  else{activarPestana(pestanas[0].id,true);}
+  pestanas=pestanas.filter(x=>x.id!==id); // quita solo la cuenta recién cobrada; las demás se conservan
+  pestanaActiva=null;                      // evita que nuevaPestana persista en la cuenta ya cerrada
+  orden={}; promoActiva=null;              // estado limpio para la nueva pestaña
+  nuevaPestana();                          // crea "Cuenta N" vacía y la deja activa (orden {}, promo null)
 }
 function renderPestanas(){
   const bar=document.getElementById('pestanas-bar'); if(!bar)return;
