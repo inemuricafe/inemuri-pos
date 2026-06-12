@@ -6147,7 +6147,8 @@ void main() {
           <div id="fondo-motivo-wrap" style="display:none;margin-top:5px;">
             <input class="field-input" type="text" id="fondo-motivo" placeholder="Motivo del cambio (obligatorio)…" oninput="onMotivoFondo()" style="width:100%;box-sizing:border-box;text-align:left;"/>
           </div>
-          <div class="field-row" style="border:none;"><span class="field-label">Efectivo al cerrar</span><input class="field-input" type="number" id="cierre-monto" placeholder="$0" oninput="calcularCaja()"/></div>
+          <div class="field-row" style="border:none;"><span class="field-label">Efectivo esperado al cerrar</span><input class="field-input" type="number" id="cierre-monto" placeholder="$0" readonly tabindex="-1" title="Calculado automáticamente. Ajusta con Ingresos/Egresos." style="background:#e0e0e0;color:#000;cursor:default;"/></div>
+          <div style="font-size:10px;color:#bbb;margin:0;padding:0 !important;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Calculado: fondo + efectivo − propinas + (ingresos−egresos). Ajusta con movimientos.</div>
         </div>
         <div class="card">
           <div class="card-title">Propinas de tarjetas retiradas en efectivo</div>
@@ -9270,10 +9271,12 @@ function renderVentas(){
     return '<div class="venta-item" style="'+cStyle+'"><div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;"><div style="width:7px;height:7px;background:'+(v.color||'#000')+';border:1px solid #000;flex-shrink:0;"></div><span class="venta-folio" style="color:'+(v.color||'#000')+'"># '+v.folio+(v.barista?' · '+v.barista.toUpperCase():'')+'</span>'+mb+pb+dsc+cBadge+'</span>'+cBtn+corrBtn+'</div><div class="venta-det"><span class="venta-productos">'+v.resumen+'</span><span class="venta-monto">$'+v.total+'</span></div>'+cMotivo+'</div>';  }).join('');;
   const vigentes=ventas.filter(v=>!v.cancelada&&!v.corregida);
   const t=vigentes.reduce((s,v)=>s+v.total,0);
-  const tEf=vigentes.filter(v=>v.metodo!=='tarjeta').reduce((s,v)=>s+v.total,0);
+  // v111 (cuadre): efectivo = SOLO metodo efectivo; tarjeta = SOLO metodo tarjeta; promo($0) no afecta a ninguno.
+  const tEf=vigentes.filter(v=>v.metodo==='efectivo').reduce((s,v)=>s+v.total,0);
   const tTar=vigentes.filter(v=>v.metodo==='tarjeta').reduce((s,v)=>s+v.total,0);
   const setTxt=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent='$'+val;};
-  setTxt('total-dia',t);setTxt('res-ventas',t);
+  // total-dia/global = total bruto del día; res-ventas ("Ventas en efectivo" del resumen de caja) = SOLO efectivo
+  setTxt('total-dia',t);setTxt('res-ventas',tEf);
   setTxt('total-ef-dia',tEf);setTxt('total-tar-dia',tTar);setTxt('total-global-dia',t);
   const cv=document.getElementById('count-ventas');if(cv)cv.textContent=vigentes.length;
   calcularCaja();
@@ -9388,19 +9391,23 @@ function fondoEditadoSinMotivo(){
 }
 function calcularCaja(){
   const mov=leerMovimientos();
-  const cierre=parseFloat(document.getElementById('cierre-monto').value)||0;
   const prop=parseFloat(document.getElementById('propinas-monto').value)||0;
   const fondo=fondoAnteriorVal();
-  const vtotal=ventas.filter(v=>!v.cancelada&&!v.corregida).reduce((s,v)=>s+v.total,0);
-  const neto=fondo+vtotal-prop+mov.neto;
+  // v111 (cuadre): a la caja física SOLO entra el efectivo; las ventas con tarjeta se concilian por el lote de terminal.
+  const efectivo=ventas.filter(v=>!v.cancelada&&!v.corregida&&v.metodo==='efectivo').reduce((s,v)=>s+v.total,0);
+  // Efectivo esperado en caja = fondo + ventas en efectivo − propinas retiradas en efectivo + (ingresos − egresos)
+  const neto=fondo+efectivo-prop+mov.neto;
+  // v111: "Efectivo al cerrar" es un campo CALCULADO de SOLO LECTURA = neto esperado. Solo se ajusta vía Ingresos/Egresos.
+  const cierreEl=document.getElementById('cierre-monto');
+  if(cierreEl){ const cur=parseFloat(cierreEl.value); if(!(cur===neto)) cierreEl.value=neto; }
   const resFondo=document.getElementById('res-fondo');if(resFondo)resFondo.textContent='$'+fondo;
   document.getElementById('res-pagos').textContent=mov.neto===0?'$0':(mov.neto>0?'+ $'+mov.neto:'− $'+Math.abs(mov.neto));
   document.getElementById('res-propinas').textContent=prop?'− $'+prop:'$0';
   document.getElementById('res-neto').textContent='$'+neto;
-  document.getElementById('res-cierre').textContent=cierre?'$'+cierre:'—';
+  document.getElementById('res-cierre').textContent='$'+neto;
+  // El efectivo al cerrar es el valor calculado → la diferencia es 0 por construcción (ya no es conteo físico vs esperado).
   const diffEl=document.getElementById('res-diff');
-  if(cierre){const diff=cierre-neto;if(diff===0){diffEl.textContent='$0 — cuadra exacto';diffEl.style.color='#2e7d32';}else if(diff>0){diffEl.textContent='+$'+diff+' sobrante';diffEl.style.color='#2e7d32';}else{diffEl.textContent='−$'+Math.abs(diff)+' faltante';diffEl.style.color='var(--red)';};}
-  else{diffEl.textContent='—';diffEl.style.color='';}
+  diffEl.textContent='$0 — calculado (sin conteo manual)';diffEl.style.color='#2e7d32';
 }
 
 // ── INSUMOS ──
@@ -9739,7 +9746,11 @@ function renderMisTareas(){
 
 // ── REPORTE ──
 function buildReporte(checkoutHora){
-  const totalVentas=ventas.filter(v=>!v.cancelada&&!v.corregida).reduce((s,v)=>s+v.total,0);
+  // v111 (cuadre): separar totales. Global = bruto del día; Efectivo = solo metodo efectivo (lo que entra a la caja física); Tarjeta = solo metodo tarjeta (se concilia por el lote de terminal).
+  const _vig=ventas.filter(v=>!v.cancelada&&!v.corregida);
+  const totalGlobal=_vig.reduce((s,v)=>s+v.total,0);
+  const totalEfectivo=_vig.filter(v=>v.metodo==='efectivo').reduce((s,v)=>s+v.total,0);
+  const totalTarjeta=_vig.filter(v=>v.metodo==='tarjeta').reduce((s,v)=>s+v.total,0);
   const cierre=parseFloat(document.getElementById('cierre-monto').value)||0;
   const prop=parseFloat(document.getElementById('propinas-monto').value)||0;
   const loteV=parseFloat(document.getElementById('lote-ventas').value)||0;
@@ -9763,7 +9774,8 @@ function buildReporte(checkoutHora){
   if(aperturaTexto)r+='BARRA AL ABRIR\n'+aperturaTexto+'\n\n';
   if(loteV||loteP){r+='CIERRE DE LOTE EN TERMINAL BANCARIA\n';if(loteV)r+='  Ventas totales con tarjeta/terminal: $'+loteV+'\n';if(loteP)r+='  Propinas: $'+loteP+'\n';r+='\n';}
   const ventasVig=ventas.filter(v=>!v.cancelada&&!v.corregida);
-  r+='VENTAS EN EFECTIVO — '+ventasVig.length+' venta(s)'+(ventas.length>ventasVig.length?' vigentes de '+ventas.length+' movimientos':'')+'  |  Total: $'+totalVentas+'\n';
+  r+='VENTAS DEL DÍA — '+ventasVig.length+' venta(s)'+(ventas.length>ventasVig.length?' vigentes de '+ventas.length+' movimientos':'')+'  |  Total: $'+totalGlobal+'\n';
+  r+='  Efectivo (a caja): $'+totalEfectivo+'   |   Tarjeta (lote terminal): $'+totalTarjeta+'\n';
   if(ventas.length)r+=ventas.map(v=>'  # '+v.folio+(v.barista?' ['+v.barista+']':'')+(v.cancelada?'  [CANCELADA'+(v.motivoCancelacion?' — '+v.motivoCancelacion:'')+']':'')+(v.corregida?'  [REEMPLAZADA por corrección]':'')+(v.cliente?'  [Cuenta: '+v.cliente+']':'')+'\n    '+v.resumen+'  →  $'+v.total+(v.promo?'  [PROMO: '+v.promo+(v.descuento?' −$'+v.descuento:'')+']':'')).join('\n')+'\n';
   const promosV=ventas.filter(v=>!v.cancelada&&!v.corregida&&v.promo);
   if(promosV.length){const descT=promosV.reduce((s,v)=>s+(v.descuento||0),0);r+='  Descuentos aplicados: '+promosV.length+' promo(s)  →  −$'+descT+'\n';}
@@ -9771,17 +9783,17 @@ function buildReporte(checkoutHora){
   r+='RESUMEN DE CAJA\n'+'─'.repeat(44)+'\n';
   r+='  (+) Fondo del día anterior        $'+fondo+'\n';
   if(fondoAnteriorEdit)r+='      ↳ Fondo EDITADO de $'+fondoAnteriorEdit.original+' a $'+fondoAnteriorEdit.nuevo+(fondoAnteriorEdit.barista?' por '+fondoAnteriorEdit.barista:'')+(fondoAnteriorEdit.hora?' ('+fondoAnteriorEdit.hora+')':'')+'\n           Motivo: '+fondoAnteriorEdit.motivo+'\n';
-  r+='  (+) Ventas en efectivo del día    $'+totalVentas+'\n';
+  r+='  (+) Ventas en efectivo del día    $'+totalEfectivo+'\n';
   if(prop)r+='  (−) Propinas retiradas en ef.    $'+prop+'\n';
   if(movRep.detalle.length){
     if(movRep.ingresos>0)r+='  (+) Ingresos menores               $'+movRep.ingresos+'\n';
     if(movRep.egresos>0)r+='  (−) Egresos menores                $'+movRep.egresos+'\n';
     movRep.detalle.forEach(d=>{r+='       '+(d.tipo==='ingreso'?'(+)':'(−)')+' '+d.concepto+': $'+d.monto+'\n';});
   }
-  const neto=fondo+totalVentas-(prop||0)+movRep.neto;
+  const neto=fondo+totalEfectivo-(prop||0)+movRep.neto;
   r+='      '+'─'.repeat(32)+'\n';
-  r+='  Neto esperado en caja            $'+neto+'\n';
-  if(cierre){const diff=cierre-neto;r+='  Efectivo físico al cerrar        $'+cierre+'\n';r+='  Diferencia                       '+(diff===0?'$0 (cuadra exacto)':(diff>0?'+$'+diff+' sobrante':'−$'+Math.abs(diff)+' faltante'))+'\n';}
+  r+='  Efectivo esperado al cerrar      $'+neto+'  (calculado)\n';
+  r+='  (Las ventas con tarjeta NO entran a la caja: se concilian por el lote de la terminal.)\n';
   r+='─'.repeat(44)+'\n\n';
   if(cb){r+='COLD BREW\n  Café: '+cb.gramos+'g  |  Molienda #'+cb.molienda+'  |  Preparado: '+cb.horaEntrada+'\n  Infusión: '+cb.horasInfusion+' hrs  →  Filtrar: '+cb.filtradoStr+'\n\n';}
   const proDone=hoy.filter(ta=>thPro[TAREAS.indexOf(ta)]);
@@ -9875,7 +9887,8 @@ function ejecutarEnvioReporte(h){
   renderTurnoCards();renderBaristaSelector();
 
   // Calcular métricas para el Sheet
-  const totalEfectivo = ventas.filter(v=>!v.cancelada&&!v.corregida).reduce((s,v)=>s+v.total,0);
+  // v111 (cuadre): total_ventas_efectivo = SOLO ventas en efectivo (tarjeta va por el lote de terminal; promo es $0).
+  const totalEfectivo = ventas.filter(v=>!v.cancelada&&!v.corregida&&v.metodo==='efectivo').reduce((s,v)=>s+v.total,0);
   const loteV = parseFloat(document.getElementById('lote-ventas').value)||0;
   const loteP = parseFloat(document.getElementById('lote-propinas').value)||0;
   const prop = parseFloat(document.getElementById('propinas-monto').value)||0;
