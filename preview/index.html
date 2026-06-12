@@ -2020,9 +2020,11 @@ input[type="time"], input[type="date"], textarea, select {
 .numpad-btn { display:flex !important; align-items:center !important; justify-content:center !important; line-height:1 !important; }
 /* El icono de borrar (⌫) al mismo tamaño visual que las demás teclas */
 .numpad-btn.numpad-del { font-size:19px !important; }
-/* Botón "Registrar venta" al ancho EXACTO del teclado (3 columnas), alineado con él
-   — el .numpad-wrap tiene 3px de padding por lado, así que se descuentan 6px */
-.cobrar-btn { width:calc(100% - 6px) !important; margin-left:3px !important; margin-right:3px !important; }
+/* Botón "Registrar venta" al ancho EXACTO del teclado (3 columnas), alineado con él.
+   El teclado queda metido respecto al borde de la tarjeta por el padding de #ef-section (8px)
+   + el de .numpad-wrap (3px) = 11px por lado; el botón es hijo de la tarjeta, así que se le
+   aplican esos 11px de margen y se descuentan 22px de ancho para empatar exacto con el teclado. */
+.cobrar-btn { width:calc(100% - 22px) !important; margin-left:11px !important; margin-right:11px !important; }
 </style>
 </head>
 <body>
