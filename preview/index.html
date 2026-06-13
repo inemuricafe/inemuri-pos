@@ -5894,7 +5894,10 @@ void main() {
       <div>
         <div id="pestanas-bar"></div>
         <div class="card">
-          <div class="card-title">Nueva venta</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+            <div class="card-title" style="margin:0;">Nueva venta</div>
+            <button id="btn-entrada-manual" type="button" onclick="abrirEntradaManual()" style="flex:0 0 auto;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;background:#c0c0c0;border:none;box-shadow:inset -1px -1px 0 #404040,inset 1px 1px 0 #fff;">➕ Entrada Manual</button>
+          </div>
           <div class="menu-cats" id="cats"></div>
           <div class="products-grid" id="productos"></div>
         </div>
@@ -6402,7 +6405,7 @@ async function cargarBaristas(){
   }catch(e){console.warn('Sheet error:',e.message);}
 }
 
-const MENU={"Espresso":[{n:"Espresso",p:50},{n:"Espresso Doble",p:65},{n:"Americano",p:60},{n:"Long Black",p:60},{n:"Cortado",p:60},{n:"Flat White",p:70},{n:"Capucchino",p:80},{n:"Latte",p:85},{n:"Moka",p:105},{n:"Dirty Chai",p:110},{n:"Golden Milk",p:75},{n:"Babycchino",p:20},{n:"Extra Shot",p:15}],"Sin café":[{n:"Matcha Ceremonial",p:70},{n:"Matcha Latte",p:95},{n:"Chai Latte",p:90},{n:"Hojicha Latte",p:95},{n:"Cacao Latte",p:85},{n:"Taro+Ube Latte",p:125},{n:"Kumo Cocoa",p:65}],"Frías":[{n:"Cold Brew",p:85},{n:"Honey Americano",p:70},{n:"Latte Frío",p:90},{n:"Orange Espresso",p:95},{n:"Espresso Tónic",p:90},{n:"Chai Frío",p:100},{n:"Matcha Frío",p:105},{n:"Dirty Chai Frío",p:115},{n:"Taro+Ube Frío",p:125},{n:"Coconut Matcha",p:110}],"Brew Bar":[{n:"Brew Lavado",p:80},{n:"Brew Hidronatural",p:105},{n:"Brew Honey Rosa",p:105}],"Tisanas":[{n:"Mariposa Azul",p:85},{n:"Lavanda",p:65},{n:"Manzanilla-Menta",p:65},{n:"Oriental",p:65},{n:"Jengibre-Limón",p:65},{n:"Sistema Inmune",p:65},{n:"Relax",p:65},{n:"Cereza",p:75},{n:"Ponche",p:75},{n:"Arándanos",p:75},{n:"Manzana-Canela",p:75},{n:"Moras",p:75},{n:"Fresa-Kiwi",p:75}],"Leche vegetal":[{n:"Almendra Silk",p:15},{n:"GÜD Soya",p:15},{n:"LALA Pro+",p:15},{n:"Oat-ly Avena",p:20}],"Pan":[{n:"Trenza",p:60},{n:"Chocolatín",p:50},{n:"Croissant Guayaba",p:65},{n:"Kouing Manzana",p:65},{n:"Kouing Higo",p:65},{n:"Rollo Avellana",p:70},{n:"Panqué Frutos Rojos",p:55},{n:"Panqué Blueberry",p:55}],"Galletas":[{n:"NY Clásica",p:60},{n:"NY Lotus",p:60},{n:"NY Espresso Caramel",p:60},{n:"NY Choco Abuelita",p:60},{n:"NY Reese's",p:60},{n:"NY Choco-Fit",p:95},{n:"NY Flaca",p:35},{n:"Biscuit Mix",p:120},{n:"Biscuit Choco-Fit",p:210}],"Sandwiches":[{n:"Jamón Serrano",p:160},{n:"Huevo",p:135},{n:"Pechuga Pavo",p:165},{n:"Roast Beef",p:175}],"Otros":[{n:"Agua Mineral",p:25},{n:"Café en Grano",p:250}]};
+const MENU={"Espresso":[{n:"Espresso",p:50},{n:"Espresso Doble",p:65},{n:"Americano",p:60},{n:"Long Black",p:60},{n:"Cortado",p:60},{n:"Flat White",p:70},{n:"Capucchino",p:80},{n:"Latte",p:85},{n:"Afogatto",p:85},{n:"Moka",p:105},{n:"Dirty Chai",p:110},{n:"Golden Milk",p:75},{n:"Babycchino",p:20},{n:"Extra Shot",p:15}],"Sin café":[{n:"Matcha Ceremonial",p:70},{n:"Matcha Latte",p:95},{n:"Chai Latte",p:90},{n:"Hojicha Latte",p:95},{n:"Cacao Latte",p:85},{n:"Taro+Ube Latte",p:125},{n:"Kumo Cocoa",p:65}],"Frías":[{n:"Cold Brew",p:85},{n:"Honey Americano",p:70},{n:"Latte Frío",p:90},{n:"Orange Espresso",p:95},{n:"Espresso Tónic",p:90},{n:"Chai Frío",p:100},{n:"Matcha Frío",p:105},{n:"Dirty Chai Frío",p:115},{n:"Taro+Ube Frío",p:125},{n:"Coconut Matcha",p:110}],"Brew Bar":[{n:"Brew Lavado",p:80},{n:"Brew Hidronatural",p:105},{n:"Brew Honey Rosa",p:105}],"Tisanas":[{n:"Mariposa Azul",p:85},{n:"Lavanda",p:65},{n:"Manzanilla-Menta",p:65},{n:"Oriental",p:65},{n:"Jengibre-Limón",p:65},{n:"Sistema Inmune",p:65},{n:"Relax",p:65},{n:"Cereza",p:75},{n:"Ponche",p:75},{n:"Arándanos",p:75},{n:"Manzana-Canela",p:75},{n:"Moras",p:75},{n:"Fresa-Kiwi",p:75}],"Leche vegetal":[{n:"Almendra Silk",p:15},{n:"GÜD Soya",p:15},{n:"LALA Pro+",p:15},{n:"Oat-ly Avena",p:20}],"Pan":[{n:"Trenza",p:60},{n:"Chocolatín",p:50},{n:"Croissant Guayaba",p:65},{n:"Kouing Manzana",p:65},{n:"Kouing Higo",p:65},{n:"Rollo Avellana",p:70},{n:"Panqué Frutos Rojos",p:55},{n:"Panqué Blueberry",p:55}],"Galletas":[{n:"NY Clásica",p:60},{n:"NY Lotus",p:60},{n:"NY Espresso Caramel",p:60},{n:"NY Choco Abuelita",p:60},{n:"NY Reese's",p:60},{n:"NY Choco-Fit",p:95},{n:"NY Flaca",p:35},{n:"Biscuit Mix",p:120},{n:"Biscuit Choco-Fit",p:210}],"Sandwiches":[{n:"Jamón Serrano",p:160},{n:"Huevo",p:135},{n:"Pechuga Pavo",p:165},{n:"Roast Beef",p:175}],"Otros":[{n:"Agua Mineral",p:25},{n:"Café en Grano",p:250}]};
 
 // Mapa nombre → categoría para colorear la orden
 const ITEM_CAT={};
@@ -8473,8 +8476,13 @@ function ocultarNumpadFlotante(){
 // ── v111: MENÚ DE INICIO Win98 + ventana flotante del Manual ──
 // Accesos directos del menú. Para agregar más: { icono:'🔧', label:'…', accion:funcion }  (o usar {sep:true} para separador)
 const START_MENU_ITEMS=[
-  { icono:'📖', label:'Manual de Usuario', accion:abrirManual }
+  { icono:'📖', label:'Manual de Usuario', accion:abrirManual },
+  { sep:true },
+  { icono:'ℹ️', label:'Acerca de / Versión', accion:abrirAcercaDe }
 ];
+// Versiones (editar al subir a producción). prod = lo que corre en pos.inemuri.cafe; dev = esta build (preview/test).
+const APP_VERSIONES={ prod:'v5.4', dev:'v5.5', build:'111',
+  novedades:['Menú Inicio + Manual de Usuario','Entrada Manual de productos','Acerca de / Versión','Producto Afogatto ($85)'] };
 function renderStartMenu(){
   const cont=document.getElementById('wsm-items'); if(!cont)return;
   cont.innerHTML=START_MENU_ITEMS.map(function(it,i){
@@ -8549,6 +8557,76 @@ function abrirManual(){
   w.style.left=l+'px'; w.style.top=t+'px';
 }
 function cerrarManual(){ const w=document.getElementById('manual-window'); if(w)w.classList.remove('open'); }
+
+// ── ENTRADA MANUAL ── producto fuera del menú: [Producto][Precio] → se agrega a la orden
+const W98_BTN='padding:7px;font-size:12px;cursor:pointer;background:#c0c0c0;border:none;box-shadow:inset -1px -1px 0 #404040,inset 1px 1px 0 #fff;';
+const W98_TITLEBAR='height:24px;background:linear-gradient(to right,#1060c0 0%,#0030a0 50%,#001880 100%);display:flex;align-items:center;justify-content:space-between;padding:0 4px 0 8px;flex:0 0 auto;';
+function construirEntradaManual(){
+  const ov=document.createElement('div'); ov.id='entrada-manual-overlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:9700;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);';
+  ov.innerHTML='<div style="width:340px;max-width:92vw;background:#c0c0c0;">'
+    +'<div style="'+W98_TITLEBAR+'"><span style="color:#fff;font-size:12px;font-weight:bold;font-family:var(--w-font);">➕ Entrada Manual</span>'
+    +'<button class="modal-x-btn" type="button" onclick="cerrarEntradaManual()" title="Cerrar">✕</button></div>'
+    +'<div style="padding:14px;font-family:var(--w-font);">'
+    +'<label style="display:block;font-size:11px;font-weight:700;color:var(--ink-mid);margin-bottom:3px;">Producto</label>'
+    +'<input id="em-prod" type="text" autocomplete="off" placeholder="Nombre del producto" style="width:100%;box-sizing:border-box;margin-bottom:10px;">'
+    +'<label style="display:block;font-size:11px;font-weight:700;color:var(--ink-mid);margin-bottom:3px;">Precio</label>'
+    +'<input id="em-precio" type="number" inputmode="decimal" min="0" placeholder="$0" style="width:100%;box-sizing:border-box;margin-bottom:14px;">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+    +'<button type="button" onclick="cerrarEntradaManual()" style="'+W98_BTN+'">Cancelar</button>'
+    +'<button type="button" onclick="agregarEntradaManual()" style="'+W98_BTN+'font-weight:700;">Agregar</button>'
+    +'</div></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov)cerrarEntradaManual(); });
+  ov.querySelector('#em-precio').addEventListener('keydown',function(e){ if(e.key==='Enter')agregarEntradaManual(); });
+  return ov;
+}
+function abrirEntradaManual(){
+  if(requiereCheckin()){mostrarModalCheckin(abrirEntradaManual);return;}
+  let ov=document.getElementById('entrada-manual-overlay');
+  if(!ov)ov=construirEntradaManual();
+  ov.querySelector('#em-prod').value='';
+  ov.querySelector('#em-precio').value='';
+  ov.style.display='flex';
+  setTimeout(function(){ const i=ov.querySelector('#em-prod'); if(i)i.focus(); },60);
+}
+function cerrarEntradaManual(){ const ov=document.getElementById('entrada-manual-overlay'); if(ov)ov.style.display='none'; }
+function agregarEntradaManual(){
+  const prod=(document.getElementById('em-prod').value||'').trim();
+  const precio=parseFloat(document.getElementById('em-precio').value);
+  if(!prod){ mostrarToast('Escribe el nombre del producto',2200); return; }
+  if(isNaN(precio)||precio<=0){ mostrarToast('Escribe un precio válido',2200); return; }
+  addItem(prod, precio);
+  cerrarEntradaManual();
+}
+
+// ── ACERCA DE / VERSIÓN ──
+function construirAcercaDe(){
+  const v=APP_VERSIONES;
+  const ov=document.createElement('div'); ov.id='acerca-overlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:9700;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);';
+  const nov=(v.novedades||[]).map(function(t){ return '<div style="padding:1px 0;">• '+t+'</div>'; }).join('');
+  ov.innerHTML='<div style="width:380px;max-width:92vw;background:#c0c0c0;">'
+    +'<div style="'+W98_TITLEBAR+'"><span style="color:#fff;font-size:12px;font-weight:bold;font-family:var(--w-font);">ℹ️ Acerca de — Inemuri POS</span>'
+    +'<button class="modal-x-btn" type="button" onclick="cerrarAcercaDe()" title="Cerrar">✕</button></div>'
+    +'<div style="padding:16px;font-family:var(--w-font);">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="font-size:34px;">☕</span>'
+    +'<div><div style="font-size:15px;font-weight:800;">Inemuri Café — POS</div><div style="font-size:11px;color:var(--ink-mid);">PWA de barra · iPad Pro 11"</div></div></div>'
+    +'<div style="border:1px solid #808080;background:#fff;padding:8px 10px;font-size:12px;">'
+    +'<div style="display:flex;justify-content:space-between;padding:3px 0;"><span>En producción</span><b>'+v.prod+'</b></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px dotted #ccc;"><span>En desarrollo</span><b style="color:#0030a0;">'+v.dev+'</b></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px dotted #ccc;"><span>Esta build</span><b>'+v.build+' ('+v.dev+')</b></div></div>'
+    +'<div style="margin-top:10px;font-size:11px;font-weight:700;color:var(--ink-mid);">Novedades en desarrollo</div>'
+    +'<div style="font-size:11px;color:var(--ink);margin-top:2px;line-height:1.4;">'+nov+'</div>'
+    +'<div style="margin-top:10px;font-size:9.5px;color:var(--ink-mid);line-height:1.5;">Producción: pos.inemuri.cafe · Desarrollo: pos.inemuri.cafe/preview/ y test.inemuri.cafe</div>'
+    +'<div style="display:flex;justify-content:flex-end;margin-top:14px;"><button type="button" onclick="cerrarAcercaDe()" style="'+W98_BTN+'min-width:90px;">Aceptar</button></div>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov)cerrarAcercaDe(); });
+  return ov;
+}
+function abrirAcercaDe(){ let ov=document.getElementById('acerca-overlay'); if(!ov)ov=construirAcercaDe(); ov.style.display='flex'; }
+function cerrarAcercaDe(){ const ov=document.getElementById('acerca-overlay'); if(ov)ov.style.display='none'; }
 
 // ── INIT ──
 function init(){
@@ -10231,7 +10309,7 @@ window.addEventListener('focus', verificarCambioDia);
     #win-start-menu .wsm-sep{ height:0; border-top:1px solid #808080; border-bottom:1px solid #fff; margin:3px 6px; }
     #win-start-btn.active-start{ box-shadow: inset 1px 1px 0 #0a0a0a, inset -1px -1px 0 #ffffff, inset 2px 2px 0 #808080, inset -2px -2px 0 #dfdfdf !important; }
 
-    #manual-window{ position:fixed; z-index:9600; display:none; width:780px; max-width:94vw; height:600px; max-height:82vh; background:#c0c0c0; flex-direction:column;
+    #manual-window{ position:fixed; z-index:9600; display:none; width:900px; max-width:96vw; height:680px; max-height:88vh; background:#c0c0c0; flex-direction:column;
       box-shadow: inset -1px -1px 0 #404040, inset 1px 1px 0 #dfdfdf, inset -2px -2px 0 #808080, inset 2px 2px 0 #fff, 5px 5px 0 rgba(0,0,0,.45); border:1px solid #000; }
     #manual-window.open{ display:flex; }
     #manual-window #manual-titlebar{ height:24px; background:linear-gradient(to right,#1060c0 0%,#0030a0 50%,#001880 100%); display:flex; align-items:center; justify-content:space-between; padding:0 4px 0 8px; cursor:move; touch-action:none; user-select:none; flex:0 0 auto; }
