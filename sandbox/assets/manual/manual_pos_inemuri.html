@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Manual del barista — App POS Inemuri Café</title>
+<style>
+  /* ====== SISTEMA DE ESTILO — sobrio, ref. Mahlkönig ====== */
+  :root{
+    --ink:#000;
+    --ink-mid:#555;
+    --ink-soft:#777;
+    --bar:#e6e6e6;        /* barras de encabezado/pie */
+    --bar-line:#9a9a9a;
+    --thead:#d6d6d6;      /* encabezado de tabla */
+    --rule:#000;
+    --hair:#bdbdbd;
+    --box:#f4f4f4;        /* fondo cajas de nota */
+    --teal:#008080;       /* color del candado de la app */
+    --navy:#001880;       /* azul barra de título Win98 */
+  }
+  @page{ size:A4; margin:0; }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#fff;}
+  @media screen{ body{background:#888;} }
+  body{
+    font-family:"Helvetica Neue",Arial,"Liberation Sans",sans-serif;
+    color:var(--ink);
+    font-size:10.5px;
+    line-height:1.46;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ====== PÁGINA A4 ====== */
+  .page{
+    position:relative;
+    width:210mm;
+    height:297mm;
+    background:#fff;
+    margin:0 auto;
+    overflow:hidden;
+    page-break-after:always;
+    break-after:page;
+  }
+  .page:last-child{page-break-after:auto;break-after:auto;}
+
+  /* área de contenido entre header y footer */
+  .body{
+    position:absolute;
+    top:16mm; left:18mm; right:18mm; bottom:15mm;
+  }
+
+  /* ====== HEADER / FOOTER CORRIDOS ====== */
+  .hdr{
+    position:absolute; top:0; left:0; right:0; height:11mm;
+    border-bottom:1px solid var(--bar-line);
+    background:var(--bar);
+    display:flex; align-items:center;
+    padding:0 18mm;
+    font-size:9px; letter-spacing:.3px; color:#333;
+  }
+  .hdr .h-left{font-weight:400;}
+  .hdr .h-right{margin-left:auto; font-weight:700;}
+  .ftr{
+    position:absolute; bottom:0; left:0; right:0; height:10mm;
+    border-top:1px solid var(--bar-line);
+    background:var(--bar);
+    display:flex; align-items:center;
+    padding:0 18mm;
+    font-size:9px; color:#333;
+  }
+  .ftr .pg{margin-left:auto; font-weight:700; font-size:11px;}
+  .ftr .pg-left{font-weight:700; font-size:11px;}
+  .ftr .f-mid{margin:0 auto; color:#666; letter-spacing:.4px;}
+
+  /* ====== TIPOGRAFÍA ====== */
+  h1.sec{
+    font-size:25px; font-weight:800; letter-spacing:-.3px;
+    margin:0 0 12px; line-height:1.05;
+  }
+  h2.sub{
+    font-size:13.5px; font-weight:800; margin:16px 0 4px;
+  }
+  h3.subsub{
+    font-size:11.5px; font-weight:800; margin:11px 0 2px; color:#111;
+  }
+  p{margin:0 0 7px; text-align:justify;}
+  .lead{color:var(--ink-mid); font-size:11px;}
+  b,strong{font-weight:700;}
+  em{font-style:italic;}
+  .small{font-size:9.5px;}
+  .muted{color:var(--ink-mid);}
+  .xref{font-style:italic; color:#333;}
+
+  /* ====== CAJAS DE AVISO (icono + texto) ====== */
+  .note{
+    display:flex; gap:9px; align-items:flex-start;
+    border:1px solid var(--hair);
+    background:var(--box);
+    padding:8px 10px 8px 8px;
+    margin:8px 0;
+  }
+  .note .ico{flex:0 0 30px; display:flex; justify-content:center; padding-top:1px;}
+  .note .ico svg{width:28px; height:28px;}
+  .note .txt{flex:1;}
+  .note .nh{font-weight:800; font-size:11px; letter-spacing:.4px; display:block; margin-bottom:1px;}
+  .note.info{background:#f4f4f4;}
+  .note.warn{background:#fbf5ea; border-color:#caa45a;}
+  .note.warn .nh{color:#8a5a00;}
+  .note.caution{background:#fbf2f2; border-color:#cc9a9a;}
+  .note.caution .nh{color:#a02525;}
+  .note.tip{background:#eef4ee; border-color:#9ab79a;}
+  .note.tip .nh{color:#2e6b2e;}
+
+  /* ====== PASOS NUMERADOS ====== */
+  ol.steps{margin:6px 0 8px; padding:0; counter-reset:st; list-style:none;}
+  ol.steps>li{
+    position:relative; padding:0 0 7px 24px; margin:0;
+    counter-increment:st;
+  }
+  ol.steps>li::before{
+    content:counter(st)".";
+    position:absolute; left:0; top:0;
+    font-weight:800; font-size:11px;
+  }
+  ul.tight{margin:5px 0 8px; padding-left:16px;}
+  ul.tight li{margin-bottom:3px; padding-left:2px;}
+  ul.dash{list-style:none; margin:5px 0 8px; padding:0;}
+  ul.dash li{position:relative; padding-left:14px; margin-bottom:3px;}
+  ul.dash li::before{content:"–"; position:absolute; left:0; font-weight:700;}
+
+  .kbd{font-weight:800;}
+  .pin{font-family:"Courier New",monospace; font-weight:800; letter-spacing:2px;
+       background:#111; color:#fff; padding:1px 7px; font-size:11px;}
+
+  /* ====== FIGURAS / DIAGRAMAS ====== */
+  .fig{border:1px solid var(--rule); margin:8px 0; position:relative;}
+  .fig .cap{font-size:9px; color:#555; padding:3px 6px; border-top:1px solid var(--hair);}
+  .fig .tag{position:absolute; top:0; left:0; background:#444; color:#fff;
+            font-weight:800; font-size:10px; padding:2px 7px;}
+  .figrow{display:flex; gap:8px;}
+  .figrow .fig{flex:1;}
+
+  /* leyenda de partes (tabla nº/nombre) */
+  table.parts{width:100%; border-collapse:collapse; font-size:10px;}
+  table.parts td{padding:2.5px 5px; vertical-align:top; border-bottom:1px solid #e2e2e2;}
+  table.parts td.n{width:26px; font-weight:800; text-align:right; color:#000;}
+
+  /* ====== TABLA TROUBLESHOOTING ====== */
+  table.tsh{width:100%; border-collapse:collapse; font-size:9.6px;}
+  table.tsh th{
+    background:var(--thead); text-align:left; font-weight:800;
+    padding:5px 7px; border-bottom:1px solid #000; font-size:10px;
+  }
+  table.tsh td{padding:6px 7px; vertical-align:top; border-bottom:1px solid #cfcfcf;}
+  table.tsh td.prob{width:24%; font-weight:700;}
+  table.tsh td.cau{width:36%;}
+  table.tsh .b-cause{position:relative; padding-left:12px; margin-bottom:3px;}
+  table.tsh .b-cause::before{content:"•"; position:absolute; left:0;}
+  table.tsh .b-sol{position:relative; padding-left:13px; margin-bottom:3px;}
+  table.tsh .b-sol::before{content:"»"; position:absolute; left:0; font-weight:700;}
+
+  /* ====== CONTENIDO / ÍNDICE ====== */
+  .toc-cols{column-count:2; column-gap:14mm;}
+  .toc-grp{break-inside:avoid; margin-bottom:9px;}
+  .toc-h{font-weight:800; font-size:11.5px; display:flex; justify-content:space-between; border-bottom:1px solid #000; padding-bottom:1px;}
+  .toc-i{display:flex; justify-content:space-between; font-size:10px; color:#222; padding:1.5px 0;}
+  .toc-i .dots{flex:1; border-bottom:1px dotted #aaa; margin:0 4px 3px;}
+  .toc-i.indent{padding-left:10px; color:#555;}
+  a.toc-h, a.toc-i{ color:inherit; text-decoration:none; }
+  a.toc-h:hover, a.toc-i:hover{ color:#1a3aa0; }
+
+  /* ====== PORTADA ====== */
+  .cover{position:relative; width:210mm; height:297mm; background:#fff; margin:0 auto; overflow:hidden; page-break-after:always;}
+  .cover .ctitle{position:absolute; top:30mm; left:22mm; right:22mm;}
+  .cover .ctitle .t1{font-size:34px; font-weight:800; letter-spacing:-.5px;}
+  .cover .ctitle .t1 .light{font-weight:300; color:#444;}
+  .cover .ctitle .rule{height:2px; background:#000; width:64mm; margin:7px 0 9px;}
+  .cover .ctitle .t2{font-size:14px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:#222;}
+  .cover .cart{position:absolute; top:78mm; left:0; right:0; display:flex; justify-content:center;}
+  .cover .cfoot{position:absolute; bottom:24mm; left:0; right:0; text-align:center;}
+  .cover .cfoot .brand{font-size:18px; font-weight:800; letter-spacing:1px;}
+  .cover .cfoot .url{font-size:10px; color:#555; margin-top:2px; letter-spacing:.5px;}
+
+  .nowrap{white-space:nowrap;}
+  .chip{display:inline-block; border:1px solid #777; padding:0 5px; font-size:9px; font-weight:700; background:#eee;}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- PORTADA                                                       -->
+<!-- ============================================================ -->
+<div class="cover">
+  <div class="ctitle">
+    <div class="t1">App&nbsp;POS <span class="light">Inemuri</span></div>
+    <div class="rule"></div>
+    <div class="t2">Manual del barista</div>
+  </div>
+
+  <div class="cart">
+    <!-- Line-art: iPad en barra mostrando la app POS -->
+    <svg width="330" height="300" viewBox="0 0 330 300" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#111" stroke-width="1.4">
+      <!-- iPad cuerpo (landscape) -->
+      <rect x="20" y="30" width="290" height="200" rx="12"/>
+      <rect x="33" y="44" width="264" height="172" rx="3" stroke-width="1.1"/>
+      <!-- cámara -->
+      <circle cx="26.5" cy="130" r="2"/>
+      <!-- ====== mock de la app dentro de la pantalla ====== -->
+      <!-- barra de título -->
+      <rect x="33" y="44" width="264" height="13" fill="#001880" stroke="none"/>
+      <circle cx="41" cy="50.5" r="2.4" fill="#fff" stroke="none"/>
+      <rect x="276" y="47" width="6" height="6" fill="#fff" stroke="none"/>
+      <rect x="285" y="47" width="6" height="6" fill="#fff" stroke="none"/>
+      <!-- sidebar -->
+      <line x1="98" y1="57" x2="98" y2="216"/>
+      <rect x="33" y="57" width="65" height="16" fill="#001880" stroke="none" opacity=".15"/>
+      <rect x="40" y="80" width="50" height="14" stroke-width="1"/>
+      <rect x="40" y="98" width="50" height="14" stroke-width="1"/>
+      <rect x="40" y="116" width="50" height="9" stroke-width=".8"/>
+      <rect x="40" y="129" width="50" height="9" stroke-width=".8"/>
+      <rect x="40" y="142" width="50" height="9" stroke-width=".8"/>
+      <!-- grid de productos -->
+      <rect x="108" y="64" width="120" height="20" stroke-width="1"/>
+      <g stroke-width="1">
+        <rect x="108" y="90" width="37" height="26"/><rect x="149" y="90" width="37" height="26"/><rect x="190" y="90" width="38" height="26"/>
+        <rect x="108" y="120" width="37" height="26"/><rect x="149" y="120" width="37" height="26"/><rect x="190" y="120" width="38" height="26"/>
+        <rect x="108" y="150" width="37" height="26"/><rect x="149" y="150" width="37" height="26"/><rect x="190" y="150" width="38" height="26"/>
+      </g>
+      <!-- panel orden -->
+      <rect x="236" y="64" width="55" height="146" stroke-width="1"/>
+      <line x1="236" y1="150" x2="291" y2="150" stroke-width=".8"/>
+      <g stroke-width=".8">
+        <rect x="241" y="158" width="14" height="10"/><rect x="259" y="158" width="14" height="10"/><rect x="277" y="158" width="9" height="10"/>
+        <rect x="241" y="171" width="14" height="10"/><rect x="259" y="171" width="14" height="10"/><rect x="277" y="171" width="9" height="10"/>
+      </g>
+      <rect x="241" y="192" width="45" height="13" fill="#001880" stroke="none" opacity=".18"/>
+      <!-- base / soporte -->
+      <path d="M120 230 L210 230 L230 268 L100 268 Z"/>
+      <rect x="80" y="268" width="170" height="9" rx="3"/>
+      <!-- taza de café al lado -->
+      <path d="M286 250 q0 26 18 26 q18 0 18 -26 Z" stroke-width="1.2"/>
+      <path d="M322 256 q12 0 12 9 q0 9 -12 9" stroke-width="1.2"/>
+      <path d="M292 244 q3 -6 0 -11 M300 244 q3 -6 0 -11 M308 244 q3 -6 0 -11" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <div class="cfoot">
+    <div class="brand">INEMURI CAFÉ</div>
+    <div class="url">Col. Nápoles, CDMX · pos.inemuri.cafe</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p2 — CONTENIDO                                                -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="hdr"><span class="h-left">App POS · Inemuri Café</span></div>
+  <div class="body">
+    <h1 class="sec">Contenido</h1>
+    <div class="toc-cols">
+
+      <div class="toc-grp">
+        <a href="#sec-general" class="toc-h"><span>Generalidades</span><span>3</span></a>
+        <a href="#sec-general" class="toc-i indent"><span>Para qué sirve esta app</span><i class="dots"></i><span>3</span></a>
+        <a href="#sec-general" class="toc-i indent"><span>Símbolos que usa el manual</span><i class="dots"></i><span>3</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-vista" class="toc-h"><span>Vista general de la pantalla</span><span>4</span></a>
+        <a href="#sec-vista" class="toc-i indent"><span>Partes de la interfaz</span><i class="dots"></i><span>4</span></a>
+        <a href="#sec-menu" class="toc-i indent"><span>El menú lateral (pestañas)</span><i class="dots"></i><span>5</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-abrir" class="toc-h"><span>Abrir la app</span><span>6</span></a>
+        <a href="#sec-abrir" class="toc-i indent"><span>Candado diario (PIN)</span><i class="dots"></i><span>6</span></a>
+        <a href="#sec-abrir" class="toc-i indent"><span>Pantalla de inicio</span><i class="dots"></i><span>6</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-turno" class="toc-h"><span>Tu turno</span><span>7</span></a>
+        <a href="#sec-turno" class="toc-i indent"><span>Hacer check-in</span><i class="dots"></i><span>7</span></a>
+        <a href="#sec-turno" class="toc-i indent"><span>Estado de la barra al abrir</span><i class="dots"></i><span>7</span></a>
+        <a href="#sec-comida" class="toc-i indent"><span>Comida, salidas y checkout</span><i class="dots"></i><span>8</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-ventas" class="toc-h"><span>Registrar ventas</span><span>9</span></a>
+        <a href="#sec-ventas" class="toc-i indent"><span>Elegir productos</span><i class="dots"></i><span>9</span></a>
+        <a href="#sec-ventas" class="toc-i indent"><span>Asignar la leche</span><i class="dots"></i><span>9</span></a>
+        <a href="#sec-cobrar" class="toc-i indent"><span>Cuentas en paralelo</span><i class="dots"></i><span>10</span></a>
+        <a href="#sec-cobrar" class="toc-i indent"><span>Cobrar: efectivo / tarjeta</span><i class="dots"></i><span>10</span></a>
+        <a href="#sec-cobrar" class="toc-i indent"><span>Promociones</span><i class="dots"></i><span>10</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-historial" class="toc-h"><span>Ventas del día</span><span>11</span></a>
+        <a href="#sec-historial" class="toc-i indent"><span>Corregir o cancelar una venta</span><i class="dots"></i><span>11</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-proactivos" class="toc-h"><span>Proactivos y Mis tareas</span><span>12</span></a>
+        <a href="#sec-proactivos" class="toc-i indent"><span>Tareas proactivas</span><i class="dots"></i><span>12</span></a>
+        <a href="#sec-proactivos" class="toc-i indent"><span>Cold Brew</span><i class="dots"></i><span>12</span></a>
+        <a href="#sec-proactivos" class="toc-i indent"><span>Mis tareas personales</span><i class="dots"></i><span>12</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-inventario" class="toc-h"><span>Inventario</span><span>13</span></a>
+        <a href="#sec-inventario" class="toc-i indent"><span>Inventario diario</span><i class="dots"></i><span>13</span></a>
+        <a href="#sec-inventario" class="toc-i indent"><span>Inventario global</span><i class="dots"></i><span>13</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-avisos" class="toc-h"><span>Avisos</span><span>14</span></a>
+        <a href="#sec-avisos" class="toc-i indent"><span>Recibir y dar "Enterado"</span><i class="dots"></i><span>14</span></a>
+        <a href="#sec-avisos" class="toc-i indent"><span>Dejar aviso para mañana</span><i class="dots"></i><span>14</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-caja" class="toc-h"><span>Caja y Cierre</span><span>15</span></a>
+        <a href="#sec-caja" class="toc-i indent"><span>Llenar el cierre</span><i class="dots"></i><span>15</span></a>
+        <a href="#sec-cierre" class="toc-i indent"><span>Orden correcto de cierre</span><i class="dots"></i><span>16</span></a>
+        <a href="#sec-cierre" class="toc-i indent"><span>Enviar el reporte</span><i class="dots"></i><span>16</span></a>
+      </div>
+
+      <div class="toc-grp">
+        <a href="#sec-problemas" class="toc-h"><span>Solución de problemas</span><span>17</span></a>
+      </div>
+
+    </div>
+  </div>
+  <div class="ftr"><span class="pg-left">2</span><span class="f-mid">Manual del barista</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p3 — GENERALIDADES                                            -->
+<!-- ============================================================ -->
+<div class="page" id="sec-general">
+  <div class="hdr"><span class="h-right">App POS Inemuri | ES</span></div>
+  <div class="body">
+    <h1 class="sec">Generalidades</h1>
+
+    <h2 class="sub">Para qué sirve esta app</h2>
+    <p>La <b>App POS de Inemuri</b> es la herramienta con la que operas la barra todos los días desde el iPad: registra las
+    ventas, controla tu turno, lleva el inventario, comparte avisos entre baristas y arma el reporte de cierre de caja.
+    Funciona sola en el iPad de la barra, sin instalar nada.</p>
+    <p>Léela completa una vez antes de tu primer turno. Después úsala como referencia rápida: si algo se te atora,
+    busca la sección correspondiente o ve directo a <span class="xref">"Solución de problemas", p. 17</span>.</p>
+
+    <div class="note tip">
+      <div class="ico">
+        <svg viewBox="0 0 28 28" fill="none" stroke="#2e6b2e" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><path d="M8 14.5 l4 4 l8 -9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="txt"><span class="nh">EN CORTO</span>
+        Tu día es: <b>desbloquear con PIN → check-in → vender</b> durante el turno → al final, el último barista
+        <b>cierra inventario, envía el reporte y hace checkout</b>.</div>
+    </div>
+
+    <h2 class="sub">Símbolos que usa el manual</h2>
+    <p class="lead">Estas marcas aparecen a lo largo del manual. Préstales atención.</p>
+
+    <div class="note caution">
+      <div class="ico">
+        <svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg>
+      </div>
+      <div class="txt"><span class="nh">IMPORTANTE</span>
+        Marca algo que, si lo haces mal, afecta el dinero, el reporte o el trabajo del siguiente barista. No lo saltes.</div>
+    </div>
+
+    <div class="note warn">
+      <div class="ico">
+        <svg viewBox="0 0 28 28" fill="none" stroke="#8a5a00" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#8a5a00" stroke="none"/></svg>
+      </div>
+      <div class="txt"><span class="nh">OJO</span>
+        Un detalle fácil de pasar por alto que suele causar confusión o un error pequeño.</div>
+    </div>
+
+    <div class="note info">
+      <div class="ico">
+        <svg viewBox="0 0 28 28" fill="none" stroke="#333" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><circle cx="14" cy="8.5" r="1.3" fill="#333" stroke="none"/><line x1="14" y1="12.5" x2="14" y2="20"/></svg>
+      </div>
+      <div class="txt"><span class="nh">NOTA</span>
+        Información útil para entender mejor cómo funciona algo, aunque no sea obligatoria.</div>
+    </div>
+
+    <div class="note tip">
+      <div class="ico">
+        <svg viewBox="0 0 28 28" fill="none" stroke="#2e6b2e" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><path d="M8 14.5 l4 4 l8 -9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="txt"><span class="nh">HECHO / TIP</span>
+        Confirma que un paso quedó bien, o da un atajo para hacerlo más rápido.</div>
+    </div>
+
+    <div class="note">
+      <div class="ico">
+        <svg viewBox="0 0 28 28" fill="none" stroke="#111" stroke-width="1.6"><rect x="4" y="6" width="20" height="16" rx="2"/><rect x="7.5" y="9.5" width="5" height="4"/><rect x="14" y="9.5" width="6.5" height="1.6" fill="#111" stroke="none"/><rect x="14" y="13" width="6.5" height="1.6" fill="#111" stroke="none"/><rect x="7.5" y="17" width="13" height="1.6" fill="#111" stroke="none"/></svg>
+      </div>
+      <div class="txt"><span class="nh">PIN</span>
+        Una caja como <span class="pin">0335</span> indica un código que tecleas en la app. Los PIN están al final del manual y NO se comparten con clientes.</div>
+    </div>
+
+  </div>
+  <div class="ftr"><span class="f-mid">Manual del barista</span><span class="pg">3</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p4 — VISTA GENERAL DE LA PANTALLA                             -->
+<!-- ============================================================ -->
+<div class="page" id="sec-vista">
+  <div class="hdr"><span class="h-left">App POS · Inemuri Café</span></div>
+  <div class="body">
+    <h1 class="sec">Vista general de la pantalla</h1>
+    <div class="note info" style="margin-top:0;">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#333" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><circle cx="14" cy="8.5" r="1.3" fill="#333" stroke="none"/><line x1="14" y1="12.5" x2="14" y2="20"/></svg></div>
+      <div class="txt">La app imita el aspecto de <b>Windows 98</b>: ventana con barra de título azul, botones con relieve y menú lateral. Es a propósito; todo funciona con toques en la pantalla del iPad.</div>
+    </div>
+
+    <div class="fig">
+      <div class="tag">A</div>
+      <svg width="100%" viewBox="0 0 720 470" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#111" stroke-width="1.2" font-family="Arial" font-size="11">
+        <!-- marco ventana -->
+        <rect x="150" y="34" width="430" height="404"/>
+        <!-- 1 barra de título -->
+        <rect x="150" y="34" width="430" height="20" fill="#1a3aa0" stroke="none"/>
+        <circle cx="161" cy="44" r="4" fill="#fff" stroke="none"/>
+        <rect x="556" y="39" width="9" height="9" fill="#d8d8d8" stroke="#111" stroke-width=".7"/>
+        <rect x="567" y="39" width="9" height="9" fill="#d8d8d8" stroke="#111" stroke-width=".7"/>
+        <text x="170" y="48" fill="#fff" font-size="10" font-weight="bold">Inemuri Café — POS</text>
+        <!-- 2 barra de menú -->
+        <rect x="150" y="54" width="430" height="15" fill="#d4d4d4" stroke="#111" stroke-width=".7"/>
+        <text x="158" y="65" font-size="9" fill="#222">Archivo  Edición  Ver  Herramientas  Ayuda</text>
+        <!-- sidebar -->
+        <rect x="150" y="69" width="120" height="369" fill="#c8c8c8" stroke="#111" stroke-width=".8"/>
+        <!-- 3 logo -->
+        <rect x="158" y="76" width="104" height="26" fill="#fff" stroke="#111" stroke-width=".7"/>
+        <text x="210" y="93" font-size="11" font-weight="bold" text-anchor="middle" fill="#111">inemuri</text>
+        <!-- fecha -->
+        <text x="210" y="113" font-size="8" text-anchor="middle" fill="#444">vie 12 jun · 21°C</text>
+        <!-- 4 usuario actual -->
+        <rect x="158" y="120" width="104" height="13" fill="#1a3aa0" stroke="none"/>
+        <text x="163" y="130" font-size="8" fill="#fff" font-weight="bold">USUARIO ACTUAL</text>
+        <rect x="158" y="135" width="104" height="22" fill="#fff" stroke="#111" stroke-width=".7"/>
+        <circle cx="170" cy="146" r="6" fill="#D199FF" stroke="#111" stroke-width=".5"/>
+        <text x="182" y="144" font-size="8" font-weight="bold" fill="#111">GABRIEL</text>
+        <text x="182" y="153" font-size="7" fill="#e53935">● ACTIVO</text>
+        <rect x="158" y="159" width="104" height="16" fill="#e8e8e8" stroke="#111" stroke-width=".6"/>
+        <circle cx="170" cy="167" r="6" fill="#FF99B1" stroke="#111" stroke-width=".5"/>
+        <text x="182" y="170" font-size="8" fill="#111">ALEJANDRA</text>
+        <!-- 5 mis tareas -->
+        <rect x="196" y="178" width="66" height="13" fill="#000080" stroke="none"/>
+        <text x="229" y="188" font-size="7.5" fill="#fff" text-anchor="middle">Mis tareas</text>
+        <!-- 6 menú lateral / pestañas -->
+        <rect x="158" y="197" width="104" height="20" fill="#fff" stroke="#111" stroke-width=".7"/>
+        <text x="210" y="210" font-size="9" font-weight="bold" text-anchor="middle">Ventas</text>
+        <g font-size="8" fill="#111">
+          <rect x="158" y="220" width="104" height="13" fill="#e8e8e8" stroke="#111" stroke-width=".5"/><text x="163" y="229">Ventas del día</text>
+          <rect x="158" y="234" width="104" height="13" fill="#e8e8e8" stroke="#111" stroke-width=".5"/><text x="163" y="243">Proactivos</text>
+          <rect x="158" y="248" width="104" height="13" fill="#e8e8e8" stroke="#111" stroke-width=".5"/><text x="163" y="257">Inventario</text>
+          <rect x="158" y="262" width="104" height="13" fill="#e8e8e8" stroke="#111" stroke-width=".5"/><text x="163" y="271">Avisos</text>
+          <rect x="158" y="276" width="104" height="13" fill="#e8e8e8" stroke="#111" stroke-width=".5"/><text x="163" y="285">Caja y Cierre</text>
+        </g>
+        <!-- centro: pestañas de cuentas -->
+        <rect x="276" y="74" width="46" height="15" fill="#c0c0c0" stroke="#111" stroke-width=".6"/><text x="299" y="85" font-size="8" text-anchor="middle">Cuenta 1</text>
+        <rect x="324" y="76" width="40" height="13" fill="#b4b4b4" stroke="#111" stroke-width=".6"/><text x="344" y="85" font-size="8" text-anchor="middle" fill="#444">+ 2</text>
+        <!-- 8 categorías -->
+        <rect x="276" y="93" width="232" height="40" fill="#fff" stroke="#111" stroke-width=".8"/>
+        <text x="282" y="105" font-size="8" font-weight="bold">Nueva venta</text>
+        <g font-size="7.5">
+          <rect x="282" y="110" width="40" height="14" fill="#1a3aa0" stroke="none"/><text x="302" y="120" fill="#fff" text-anchor="middle">Espresso</text>
+          <rect x="325" y="110" width="40" height="14" fill="#e0e0e0" stroke="#111" stroke-width=".5"/><text x="345" y="120" text-anchor="middle">Sin café</text>
+          <rect x="368" y="110" width="34" height="14" fill="#e0e0e0" stroke="#111" stroke-width=".5"/><text x="385" y="120" text-anchor="middle">Frías</text>
+          <rect x="405" y="110" width="34" height="14" fill="#e0e0e0" stroke="#111" stroke-width=".5"/><text x="422" y="120" text-anchor="middle">Pan</text>
+        </g>
+        <!-- 9 cuadrícula productos -->
+        <g stroke="#111" stroke-width=".7" font-size="7">
+          <rect x="282" y="138" width="52" height="26" fill="#f6f6f6"/><text x="308" y="150" text-anchor="middle">Latte</text><text x="308" y="159" text-anchor="middle" fill="#444">$85</text>
+          <rect x="338" y="138" width="52" height="26" fill="#f6f6f6"/><text x="364" y="150" text-anchor="middle">Capuch.</text><text x="364" y="159" text-anchor="middle" fill="#444">$80</text>
+          <rect x="394" y="138" width="52" height="26" fill="#f6f6f6"/><text x="420" y="150" text-anchor="middle">Espresso</text><text x="420" y="159" text-anchor="middle" fill="#444">$50</text>
+          <rect x="450" y="138" width="58" height="26" fill="#f6f6f6"/><text x="479" y="150" text-anchor="middle">Americano</text><text x="479" y="159" text-anchor="middle" fill="#444">$60</text>
+          <rect x="282" y="167" width="52" height="26" fill="#f6f6f6"/><rect x="338" y="167" width="52" height="26" fill="#f6f6f6"/><rect x="394" y="167" width="52" height="26" fill="#f6f6f6"/><rect x="450" y="167" width="58" height="26" fill="#f6f6f6"/>
+          <rect x="282" y="196" width="52" height="26" fill="#f6f6f6"/><rect x="338" y="196" width="52" height="26" fill="#f6f6f6"/><rect x="394" y="196" width="52" height="26" fill="#f6f6f6"/><rect x="450" y="196" width="58" height="26" fill="#f6f6f6"/>
+        </g>
+        <!-- 10 barra de leches -->
+        <g font-size="7" stroke="#111" stroke-width=".6">
+          <rect x="282" y="228" width="44" height="16" fill="#e8e8e8"/><text x="304" y="238" text-anchor="middle">ENTERA</text>
+          <rect x="328" y="228" width="44" height="16" fill="#e8e8e8"/><text x="350" y="238" text-anchor="middle">DESLAC.</text>
+          <rect x="374" y="228" width="44" height="16" fill="#e8e8e8"/><text x="396" y="238" text-anchor="middle">OAT-LY</text>
+          <rect x="420" y="228" width="44" height="16" fill="#e8e8e8"/><text x="442" y="238" text-anchor="middle">GÜD</text>
+          <rect x="466" y="228" width="42" height="16" fill="#e8e8e8"/><text x="487" y="238" text-anchor="middle">SILK</text>
+        </g>
+        <!-- 11 orden actual -->
+        <rect x="514" y="74" width="62" height="360" fill="#fff" stroke="#111" stroke-width=".8"/>
+        <text x="520" y="86" font-size="8" font-weight="bold">Orden actual</text>
+        <!-- 12 métodos -->
+        <g font-size="6.5" stroke="#111" stroke-width=".5">
+          <rect x="519" y="92" width="18" height="13" fill="#a8a8a8"/><text x="528" y="101" text-anchor="middle">Efec</text>
+          <rect x="539" y="92" width="17" height="13" fill="#d4d4d4"/><text x="547" y="101" text-anchor="middle">Tarj</text>
+          <rect x="558" y="92" width="15" height="13" fill="#d4d4d4"/><text x="565" y="101" text-anchor="middle">Pro</text>
+        </g>
+        <line x1="514" y1="150" x2="576" y2="150" stroke="#111" stroke-width=".5"/>
+        <text x="520" y="163" font-size="7" fill="#555">1× Latte ........ $85</text>
+        <line x1="514" y1="172" x2="576" y2="172" stroke="#111" stroke-width=".5"/>
+        <text x="520" y="184" font-size="8" font-weight="bold">Total      $85</text>
+        <!-- 13 numpad / cambio -->
+        <g stroke="#111" stroke-width=".5" font-size="7" fill="#111">
+          <rect x="519" y="192" width="26" height="14" fill="#fff"/><text x="521" y="201" font-size="5.5" fill="#666">EFECTIVO</text>
+          <rect x="547" y="192" width="26" height="14" fill="#f0ece2"/><text x="549" y="201" font-size="5.5" fill="#666">CAMBIO</text>
+          <rect x="519" y="210" width="17" height="11" fill="#e6e6e6"/><text x="527" y="218" text-anchor="middle">7</text>
+          <rect x="538" y="210" width="17" height="11" fill="#e6e6e6"/><text x="546" y="218" text-anchor="middle">8</text>
+          <rect x="557" y="210" width="16" height="11" fill="#e6e6e6"/><text x="565" y="218" text-anchor="middle">9</text>
+          <rect x="519" y="223" width="17" height="11" fill="#e6e6e6"/><rect x="538" y="223" width="17" height="11" fill="#e6e6e6"/><rect x="557" y="223" width="16" height="11" fill="#e6e6e6"/>
+          <rect x="519" y="236" width="17" height="11" fill="#e6e6e6"/><rect x="538" y="236" width="17" height="11" fill="#e6e6e6"/><rect x="557" y="236" width="16" height="11" fill="#e6e6e6"/>
+        </g>
+        <!-- 14 cobrar -->
+        <rect x="519" y="252" width="54" height="16" fill="#1a3aa0" stroke="none"/>
+        <text x="546" y="263" font-size="7.5" fill="#fff" text-anchor="middle" font-weight="bold">Registrar venta</text>
+
+        <!-- ================= CALLOUTS ================= -->
+        <g font-size="11" font-weight="bold" fill="#111">
+          <!-- helper circles -->
+          <g stroke="#111" stroke-width="1" fill="#fff">
+            <circle cx="120" cy="44" r="9"/><circle cx="120" cy="61" r="9"/>
+            <circle cx="120" cy="89" r="9"/><circle cx="120" cy="126" r="9"/>
+            <circle cx="120" cy="185" r="9"/><circle cx="120" cy="245" r="9"/>
+            <circle cx="299" cy="60" r="9"/>
+            <circle cx="360" cy="60" r="9"/>
+            <circle cx="380" cy="248" r="9"/>
+            <circle cx="640" cy="86" r="9"/><circle cx="640" cy="98" r="9"/>
+            <circle cx="640" cy="226" r="9"/><circle cx="640" cy="260" r="9"/>
+          </g>
+          <text x="120" y="48" text-anchor="middle">1</text>
+          <text x="120" y="65" text-anchor="middle">2</text>
+          <text x="120" y="93" text-anchor="middle">3</text>
+          <text x="120" y="130" text-anchor="middle">4</text>
+          <text x="120" y="189" text-anchor="middle">5</text>
+          <text x="120" y="249" text-anchor="middle">6</text>
+          <text x="299" y="64" text-anchor="middle">7</text>
+          <text x="360" y="64" text-anchor="middle">8</text>
+          <text x="380" y="252" text-anchor="middle">10</text>
+          <text x="640" y="90" text-anchor="middle">11</text>
+          <text x="640" y="102" text-anchor="middle">12</text>
+          <text x="640" y="230" text-anchor="middle">13</text>
+          <text x="640" y="264" text-anchor="middle">14</text>
+          <!-- producto 9 -->
+          <circle cx="430" cy="248" r="9" fill="#fff" stroke="#111" stroke-width="1"/><text x="430" y="252" text-anchor="middle">9</text>
+        </g>
+        <!-- leader lines -->
+        <g stroke="#111" stroke-width=".7">
+          <line x1="129" y1="44" x2="150" y2="44"/>
+          <line x1="129" y1="61" x2="150" y2="61"/>
+          <line x1="129" y1="89" x2="158" y2="89"/>
+          <line x1="129" y1="126" x2="158" y2="126"/>
+          <line x1="129" y1="185" x2="196" y2="185"/>
+          <line x1="129" y1="245" x2="158" y2="245"/>
+          <line x1="299" y1="69" x2="299" y2="74"/>
+          <line x1="360" y1="69" x2="344" y2="76"/>
+          <line x1="430" y1="239" x2="430" y2="222"/>
+          <line x1="389" y1="248" x2="464" y2="240"/>
+          <line x1="631" y1="86" x2="576" y2="80"/>
+          <line x1="631" y1="98" x2="573" y2="99"/>
+          <line x1="631" y1="226" x2="573" y2="226"/>
+          <line x1="631" y1="260" x2="573" y2="260"/>
+        </g>
+      </svg>
+      <div class="cap">Pantalla principal (sección <b>Ventas</b>). Algunos detalles pueden variar según el menú del día.</div>
+    </div>
+
+    <div style="display:flex; gap:18px;">
+      <table class="parts" style="flex:1;">
+        <tr><td class="n">1</td><td>Barra de título de la ventana</td></tr>
+        <tr><td class="n">2</td><td>Barra de menú (decorativa)</td></tr>
+        <tr><td class="n">3</td><td>Logo de Inemuri y fecha/clima</td></tr>
+        <tr><td class="n">4</td><td>Usuario actual (selector de barista)</td></tr>
+        <tr><td class="n">5</td><td>Acceso a "Mis tareas"</td></tr>
+        <tr><td class="n">6</td><td>Menú lateral (pestañas de secciones)</td></tr>
+        <tr><td class="n">7</td><td>Pestañas de cuentas en paralelo</td></tr>
+      </table>
+      <table class="parts" style="flex:1;">
+        <tr><td class="n">8</td><td>Categorías del menú</td></tr>
+        <tr><td class="n">9</td><td>Cuadrícula de productos</td></tr>
+        <tr><td class="n">10</td><td>Barra rápida de leches</td></tr>
+        <tr><td class="n">11</td><td>Orden actual (lo que vas a cobrar)</td></tr>
+        <tr><td class="n">12</td><td>Método de pago: Efectivo / Tarjeta / Promos</td></tr>
+        <tr><td class="n">13</td><td>Teclado de efectivo y cálculo de cambio</td></tr>
+        <tr><td class="n">14</td><td>Botón "Registrar venta"</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="ftr"><span class="f-mid">Manual del barista</span><span class="pg">4</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p5 — EL MENÚ LATERAL (PESTAÑAS)                               -->
+<!-- ============================================================ -->
+<div class="page" id="sec-menu">
+  <div class="hdr"><span class="h-right">App POS Inemuri | ES</span></div>
+  <div class="body">
+    <h1 class="sec">El menú lateral</h1>
+    <p class="lead">El menú lateral izquierdo (parte <b>6</b>) es como cambias de sección. Toca una pestaña para abrirla.
+    Estas son las que vas a usar como barista:</p>
+
+    <table class="parts" style="font-size:10.5px;">
+      <tr><td class="n">▸</td><td style="width:34%"><b>Ventas</b></td><td>Registrar los pedidos y cobrar. Es la pantalla principal.</td></tr>
+      <tr><td class="n">▸</td><td><b>Ventas del día</b></td><td>Lista de todo lo vendido hoy, con totales en efectivo y tarjeta.</td></tr>
+      <tr><td class="n">▸</td><td><b>Proactivos</b></td><td>Tareas para cuando no hay clientes y registro del Cold Brew.</td></tr>
+      <tr><td class="n">▸</td><td><b>Inventario</b></td><td>Anotar qué insumos quedan y dejar la compra lista para mañana.</td></tr>
+      <tr><td class="n">▸</td><td><b>Avisos</b></td><td>Leer los recados del día y dejar uno para quien abra mañana.</td></tr>
+      <tr><td class="n">▸</td><td><b>Caja y Cierre</b></td><td>Cuadrar la caja y enviar el reporte. Solo el <b>último</b> barista en turno.</td></tr>
+    </table>
+
+    <p>Bajo el nombre del barista activo aparece además el botón azul <span class="chip">Mis tareas</span> (parte <b>5</b>),
+    que abre tus tareas personales del día.</p>
+
+    <div class="note caution">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">SECCIONES SOLO PARA EL ADMINISTRADOR</span>
+        "Asignar Tareas" y "Reportes" están reservadas para el Administrador y piden un PIN. Si tocas una de ellas
+        verás un aviso de que esa sección es solo para el Administrador. No son parte de tu operación; ignóralas.</div>
+    </div>
+
+    <h2 class="sub">Pestañas atenuadas</h2>
+    <p>Algunas pestañas se ven <b>grises/apagadas</b> cuando todavía no puedes entrar:</p>
+    <ul class="dash">
+      <li><b>Caja y Cierre</b> se habilita solo cuando eres el último barista en turno (los demás ya hicieron checkout).</li>
+      <li>Si la tocas antes de tiempo, la app te avisa con un mensaje abajo en lugar de abrirla.</li>
+    </ul>
+
+    <div class="note tip">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#2e6b2e" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><path d="M8 14.5 l4 4 l8 -9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="txt"><span class="nh">TIP</span>
+        El nombre del barista <b>ACTIVO</b> (en rojo) es quien queda registrado en cada venta y tarea. Si trabajan
+        dos a la vez, toca tu nombre antes de empezar a vender para que las ventas queden a tu cuenta.</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="pg-left">5</span><span class="f-mid">Manual del barista</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p6 — ABRIR LA APP                                             -->
+<!-- ============================================================ -->
+<div class="page" id="sec-abrir">
+  <div class="hdr"><span class="h-left">App POS · Inemuri Café</span></div>
+  <div class="body">
+    <h1 class="sec">Abrir la app</h1>
+
+    <h2 class="sub">1 · Candado diario (PIN)</h2>
+    <p>Al abrir la app por primera vez en el día aparece una pantalla <b>teal (verde-azulado)</b> que cubre todo y pide un PIN.
+    Es un candado de seguridad que se pide <b>una sola vez al día</b>.</p>
+
+    <div class="figrow">
+      <div class="fig" style="flex:0 0 150px;">
+        <svg width="100%" viewBox="0 0 150 170" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#111" stroke-width="1.1" font-family="Arial">
+          <rect x="2" y="2" width="146" height="166" fill="#008080" stroke="none"/>
+          <rect x="20" y="20" width="110" height="130" fill="#c0c0c0" stroke="#111" stroke-width=".8"/>
+          <rect x="20" y="20" width="110" height="13" fill="#1a3aa0" stroke="none"/>
+          <text x="26" y="29" font-size="7" fill="#fff" font-weight="bold">Inemuri Café — Acceso</text>
+          <rect x="28" y="40" width="94" height="16" fill="#fff" stroke="#111" stroke-width=".6"/>
+          <text x="75" y="52" font-size="12" text-anchor="middle" letter-spacing="3">••••</text>
+          <g font-size="9" text-anchor="middle">
+            <rect x="28" y="62" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="42" y="73">1</text>
+            <rect x="61" y="62" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="75" y="73">2</text>
+            <rect x="94" y="62" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="108" y="73">3</text>
+            <rect x="28" y="80" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="42" y="91">4</text>
+            <rect x="61" y="80" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="75" y="91">5</text>
+            <rect x="94" y="80" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="108" y="91">6</text>
+            <rect x="28" y="98" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="42" y="109">7</text>
+            <rect x="61" y="98" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="75" y="109">8</text>
+            <rect x="94" y="98" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="108" y="109">9</text>
+            <rect x="61" y="116" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="75" y="127">0</text>
+            <rect x="94" y="116" width="28" height="16" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="108" y="127">⌫</text>
+          </g>
+          <rect x="28" y="136" width="94" height="10" fill="#d4d4d4" stroke="#111" stroke-width=".5"/><text x="75" y="143.5" font-size="6.5" text-anchor="middle" font-weight="bold">ENTRAR</text>
+        </svg>
+        <div class="cap">Candado diario</div>
+      </div>
+      <div style="flex:1;">
+        <ol class="steps">
+          <li>Teclea el PIN <span class="pin">0335</span> con el teclado en pantalla.</li>
+          <li>Toca <span class="chip">ENTRAR</span>. El candado desaparece.</li>
+          <li>Si te equivocas, aparece <em>"PIN incorrecto"</em> en rojo y se borra; vuelve a intentar.</li>
+        </ol>
+        <div class="note info">
+          <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#333" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><circle cx="14" cy="8.5" r="1.3" fill="#333" stroke="none"/><line x1="14" y1="12.5" x2="14" y2="20"/></svg></div>
+          <div class="txt">Una vez desbloqueado, <b>no</b> vuelve a pedir el PIN ese día, aunque reinicies el iPad. Al día siguiente lo pide de nuevo.</div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="sub">2 · Pantalla de inicio</h2>
+    <p>Después del candado aparece una pantalla de bienvenida ("Buenos días") con un botón grande.</p>
+    <ol class="steps">
+      <li>Toca <span class="chip">INICIÓN SESIADA</span> (sí, así se llama; es un guiño de la casa).</li>
+      <li>La app conecta y entra directo a la sección <b>Ventas</b>. Ya estás dentro.</li>
+    </ol>
+
+    <div class="note warn">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#8a5a00" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#8a5a00" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">OJO</span>
+        Entrar a la app <b>no</b> es lo mismo que iniciar tu turno. Para que tus ventas queden registradas a tu nombre,
+        todavía falta hacer <b>check-in</b> (ver siguiente página).</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="f-mid">Manual del barista</span><span class="pg">6</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p7 — TU TURNO: CHECK-IN                                       -->
+<!-- ============================================================ -->
+<div class="page" id="sec-turno">
+  <div class="hdr"><span class="h-right">App POS Inemuri | ES</span></div>
+  <div class="body">
+    <h1 class="sec">Tu turno</h1>
+    <p class="lead">El check-in registra a qué hora entraste y pone tus ventas y tareas a tu nombre. Hazlo apenas llegues.</p>
+
+    <h2 class="sub">Hacer check-in</h2>
+    <ol class="steps">
+      <li>En el menú lateral, bajo <b>USUARIO ACTUAL</b>, toca tu nombre.</li>
+      <li>Confirma el check-in cuando la app te lo pida.</li>
+      <li>Tu nombre se pone en <b style="color:#c0392b;">rojo · ACTIVO</b>. Listo, ya estás en turno.</li>
+    </ol>
+
+    <div class="note info">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#333" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><circle cx="14" cy="8.5" r="1.3" fill="#333" stroke="none"/><line x1="14" y1="12.5" x2="14" y2="20"/></svg></div>
+      <div class="txt">Si intentas vender sin haber hecho check-in, la app abre sola la ventana <em>"¿Quién está trabajando?"</em> para que elijas tu nombre antes de continuar.</div>
+    </div>
+
+    <h3 class="subsub">Los estados de cada barista</h3>
+    <p>Junto a cada nombre verás su estado actual:</p>
+    <table class="parts" style="font-size:10px;">
+      <tr><td style="width:30%"><b style="color:#c0392b;">● ACTIVO</b></td><td>Eres tú ahora mismo; las ventas se registran a tu nombre.</td></tr>
+      <tr><td><b style="color:#1f4fa0;">EN TURNO</b></td><td>Hizo check-in y está trabajando, pero no es el "activo".</td></tr>
+      <tr><td><b style="color:#c47a3d;">EN COMIDA</b></td><td>Salió a comer y aún no regresa.</td></tr>
+      <tr><td><b style="color:#555;">FUERA</b></td><td>Todavía no hace check-in hoy.</td></tr>
+      <tr><td><b style="color:#555;">SALIÓ</b></td><td>Ya hizo checkout; cerró su turno.</td></tr>
+    </table>
+
+    <h2 class="sub">Estado de la barra al abrir</h2>
+    <p>El <b>primer</b> barista que hace check-in en el día recibe una ventana que pregunta
+    <em>"¿Cómo encontraste la barra al abrir?"</em>. Es obligatorio responder.</p>
+    <ol class="steps">
+      <li>Escribe brevemente cómo estaba todo (ej: <em>"Barra limpia, molino calibrado, refri con leche suficiente"</em>).</li>
+      <li>Toca <span class="chip">Guardar y continuar</span>.</li>
+    </ol>
+    <div class="note warn">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#8a5a00" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#8a5a00" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">OJO</span> Esta pregunta sale una sola vez al día, al primer check-in. Si no eres el primero, no la verás.</div>
+    </div>
+
+    <h2 class="sub">¿Hay un aviso para ti?</h2>
+    <p>Si el barista de ayer te dejó un recado, aparece automáticamente al hacer check-in. Léelo y ciérralo;
+    queda guardado en la sección <b>Avisos</b> (p. 14).</p>
+  </div>
+  <div class="ftr"><span class="pg-left">7</span><span class="f-mid">Manual del barista</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p8 — COMIDA, SALIDAS Y CHECKOUT                               -->
+<!-- ============================================================ -->
+<div class="page" id="sec-comida">
+  <div class="hdr"><span class="h-left">App POS · Inemuri Café</span></div>
+  <div class="body">
+    <h1 class="sec">Comida, salidas y checkout</h1>
+    <p class="lead">Toca <b>"Turno"</b> bajo tu nombre para abrir tu tarjeta de turno. Desde ahí marcas tus tiempos.</p>
+
+    <div class="figrow">
+      <div class="fig" style="flex:0 0 200px;">
+        <svg width="100%" viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#111" stroke-width="1" font-family="Arial" font-size="9">
+          <rect x="6" y="6" width="188" height="138" fill="#c0c0c0" stroke="#111" stroke-width=".8"/>
+          <rect x="6" y="6" width="4" height="138" fill="#D199FF" stroke="none"/>
+          <circle cx="24" cy="22" r="8" fill="#D199FF" stroke="#111" stroke-width=".6"/><text x="24" y="25.5" text-anchor="middle" font-weight="bold" font-size="9">G</text>
+          <text x="38" y="20" font-weight="bold" font-size="10">Gabriel</text>
+          <rect x="140" y="14" width="48" height="13" fill="none" stroke="#2e7d32" stroke-width=".8"/><text x="164" y="23.5" text-anchor="middle" fill="#2e7d32" font-size="8">En turno</text>
+          <line x1="14" y1="34" x2="190" y2="34" stroke="#aaa" stroke-width=".5"/>
+          <text x="14" y="46" fill="#555">Entrada</text><text x="186" y="46" text-anchor="end" font-weight="bold">08:02</text>
+          <g font-size="8.5" text-anchor="middle">
+            <rect x="14" y="56" width="84" height="17" fill="#e6e6e6" stroke="#111" stroke-width=".6"/><text x="56" y="67.5">Salir a comer</text>
+            <rect x="102" y="56" width="84" height="17" fill="#e6e6e6" stroke="#111" stroke-width=".6"/><text x="144" y="67.5">Salir temporal</text>
+            <rect x="14" y="77" width="172" height="17" fill="#D199FF" stroke="#111" stroke-width=".6"/><text x="100" y="88.5" font-weight="bold">Checkout</text>
+          </g>
+          <text x="14" y="112" font-size="7.5" fill="#b07800">⚠ Cierra el inventario y envía el</text>
+          <text x="14" y="122" font-size="7.5" fill="#b07800">reporte antes del checkout.</text>
+        </svg>
+        <div class="cap">Tarjeta de turno</div>
+      </div>
+      <div style="flex:1;">
+        <table class="parts" style="font-size:10px;">
+          <tr><td style="width:42%"><b>Salir a comer</b></td><td>Marca tu hora de comida. Luego aparece "Regresar de comer".</td></tr>
+          <tr><td><b>Salir temporal</b></td><td>Pausa corta (baño, encargo). Luego "Regresar". Se puede repetir.</td></tr>
+          <tr><td><b>Checkout</b></td><td>Cierra tu turno y registra tu hora de salida.</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="note caution">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">IMPORTANTE · CHECKOUT DEL ÚLTIMO BARISTA</span>
+        Si eres el <b>último</b> en turno, el botón <b>Checkout</b> aparece deshabilitado con un aviso amarillo hasta que:
+        <b>(1)</b> cierres el inventario y <b>(2)</b> envíes el reporte de caja. Haz esos dos pasos primero
+        (ver p. 13 y p. 15) y el botón se activará.</div>
+    </div>
+
+    <h2 class="sub">Volver a entrar</h2>
+    <p>Si ya hiciste checkout pero regresas a trabajar, tu tarjeta muestra <span class="chip">Volver a check-in</span>.
+    Tócalo para abrir un turno nuevo; el anterior queda guardado en el historial del día.</p>
+
+    <div class="note tip">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#2e6b2e" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><path d="M8 14.5 l4 4 l8 -9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="txt"><span class="nh">TIP</span> No necesitas marcar nada al regresar de una pausa si no la habías marcado; los tiempos son para el reporte, no bloquean la venta.</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="f-mid">Manual del barista</span><span class="pg">8</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p9 — REGISTRAR VENTAS: PRODUCTOS Y LECHE                      -->
+<!-- ============================================================ -->
+<div class="page" id="sec-ventas">
+  <div class="hdr"><span class="h-right">App POS Inemuri | ES</span></div>
+  <div class="body">
+    <h1 class="sec">Registrar ventas</h1>
+    <p class="lead">Esta es tu pantalla principal. Se arma el pedido a la izquierda y se cobra en el panel "Orden actual" de la derecha.</p>
+
+    <h2 class="sub">1 · Elegir productos</h2>
+    <ol class="steps">
+      <li>Toca una <b>categoría</b> arriba (Espresso, Sin café, Frías, Brew Bar, Tisanas, Pan, Galletas, Sandwiches…).</li>
+      <li>Toca el <b>producto</b>. Se agrega a "Orden actual" y el total sube.</li>
+      <li>¿Dos del mismo? Tócalo otra vez: la cantidad sube (<b>2×</b>). Para quitar uno, usa el <b>–</b> en la orden.</li>
+    </ol>
+
+    <h2 class="sub">2 · Asignar la leche</h2>
+    <p>Las bebidas con leche (Latte, Capuchino, Flat White, Cortado, Moka, Chai, Matcha Latte, Babycchino, etc.)
+    quedan <b>pendientes de leche</b> al agregarlas: la barra de leches de abajo se enmarca en <b style="color:#c0392b;">rojo</b>.</p>
+
+    <div class="figrow">
+      <div class="fig" style="flex:0 0 250px;">
+        <svg width="100%" viewBox="0 0 250 70" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#c0392b" stroke-width="1.4" font-family="Arial" font-size="9">
+          <rect x="4" y="14" width="242" height="40"/>
+          <g stroke="#111" stroke-width=".7" text-anchor="middle">
+            <rect x="10" y="22" width="42" height="24" fill="#e8e8e8"/><text x="31" y="37">ENTERA</text>
+            <rect x="56" y="22" width="42" height="24" fill="#e8e8e8"/><text x="77" y="37">DESLAC.</text>
+            <rect x="102" y="22" width="44" height="24" fill="#e8e8e8"/><text x="124" y="33">OAT-LY</text><text x="124" y="42" fill="#cc0000" font-size="6.5">+$20</text>
+            <rect x="150" y="22" width="42" height="24" fill="#e8e8e8"/><text x="171" y="33">GÜD</text><text x="171" y="42" fill="#cc0000" font-size="6.5">+$15</text>
+            <rect x="196" y="22" width="44" height="24" fill="#e8e8e8"/><text x="218" y="33">SILK</text><text x="218" y="42" fill="#cc0000" font-size="6.5">+$15</text>
+          </g>
+          <text x="6" y="10" fill="#c0392b" font-size="8" font-weight="bold">⟵ marco rojo = falta asignar leche</text>
+        </svg>
+        <div class="cap">Barra rápida de leches</div>
+      </div>
+      <div style="flex:1;">
+        <p style="margin-top:0;">Toca la leche que pidió el cliente. Se asigna a la <b>última</b> bebida que agregaste.</p>
+        <ul class="dash">
+          <li>Las vegetales (<b>OAT-LY, GÜD, SILK</b>) cobran extra (+$15 o +$20); el total se ajusta solo.</li>
+          <li>También puedes tocar el <b>chip de leche</b> dentro de la orden para abrir el selector "<em>Leche para: …</em>" y elegir ahí.</li>
+          <li>Para <b>cambiarla</b>, toca la leche ya asignada en la orden: vuelve a quedar pendiente y eliges de nuevo.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note caution">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">IMPORTANTE</span>
+        No podrás cobrar mientras una bebida tenga la leche pendiente. La app te avisará:
+        <em>"Falta asignar la leche de: (bebida)"</em>. Asígnala y vuelve a cobrar.</div>
+    </div>
+
+    <div class="note info">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#333" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><circle cx="14" cy="8.5" r="1.3" fill="#333" stroke="none"/><line x1="14" y1="12.5" x2="14" y2="20"/></svg></div>
+      <div class="txt"><b>Leche Entera</b> y <b>Deslactosada</b> no cobran extra. La barra de leches es solo para asignar; no agrega una bebida nueva.</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="pg-left">9</span><span class="f-mid">Manual del barista</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p10 — VENTAS: CUENTAS, COBRO Y PROMOS                         -->
+<!-- ============================================================ -->
+<div class="page" id="sec-cobrar">
+  <div class="hdr"><span class="h-left">App POS · Inemuri Café</span></div>
+  <div class="body">
+    <h1 class="sec">Cobrar y promociones</h1>
+
+    <h2 class="sub">Cuentas en paralelo</h2>
+    <p>Arriba del menú hay <b>pestañas de cuentas</b> (Cuenta 1, Cuenta 2…). Sirven para llevar varios pedidos a la vez
+    sin revolverlos. Toca <span class="chip">+</span> para abrir otra cuenta y cambia entre ellas tocando su pestaña.
+    Cada cuenta cobra por separado.</p>
+
+    <h2 class="sub">Método de pago</h2>
+    <p>En "Orden actual" elige cómo paga el cliente:</p>
+    <table class="parts" style="font-size:10px;">
+      <tr><td style="width:24%"><b>💵 Efectivo</b></td><td>Teclea con cuánto paga el cliente en el teclado numérico; la app calcula el <b>cambio</b> automáticamente.</td></tr>
+      <tr><td><b>💳 Tarjeta</b></td><td>Muestra el monto a cobrar en grande para pasarlo en la terminal bancaria.</td></tr>
+      <tr><td><b>🎫 Promos</b></td><td>Abre las promociones (ver abajo).</td></tr>
+    </table>
+
+    <h2 class="sub">Registrar la venta</h2>
+    <ol class="steps">
+      <li>Revisa que la orden y el total estén correctos.</li>
+      <li>Si es efectivo, teclea con cuánto paga para ver el cambio (opcional pero recomendado).</li>
+      <li>Toca <span class="chip">Registrar venta</span>. La orden se limpia y queda guardada en "Ventas del día".</li>
+    </ol>
+
+    <h2 class="sub">Promociones</h2>
+    <p>Toca <b>🎫 Promos</b> y elige. Cada una descuenta distinto:</p>
+    <table class="parts" style="font-size:10px;">
+      <tr><td style="width:26%">⭐ <b>Lealtad</b></td><td>Descuenta <b>solo el precio base de un Latte ($85)</b>. Si la bebida vale más, el resto se cobra normal.</td></tr>
+      <tr><td>🎂 <b>Cumpleaños</b></td><td>Bebida <b>gratis</b>. <b>Verifica el INE</b> del cliente antes de aplicarla. No queda nada por cobrar.</td></tr>
+      <tr><td>☕ <b>Taza Propia</b></td><td><b>−$5</b> por traer su propia taza. Sigues cobrando el resto.</td></tr>
+    </table>
+    <p class="small muted">Las casillas "Próximamente" están reservadas para futuras promos y no hacen nada todavía.</p>
+
+    <div class="note caution">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">IMPORTANTE · LA PROMO NO REEMPLAZA EL PAGO</span>
+        Salvo <b>Cumpleaños</b> (que es gratis), después de aplicar la promo <b>casi siempre queda un monto por cobrar</b>.
+        Elige <b>Efectivo</b> o <b>Tarjeta</b> y cobra ese resto como en cualquier venta.</div>
+    </div>
+
+    <div class="note info">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#333" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><circle cx="14" cy="8.5" r="1.3" fill="#333" stroke="none"/><line x1="14" y1="12.5" x2="14" y2="20"/></svg></div>
+      <div class="txt"><span class="nh">EJEMPLO · LEALTAD</span>
+        Un <b>Taro de $125</b> con tarjeta de lealtad: se descuenta el precio de un Latte ($85) y
+        <b>quedan $40 por cobrar</b>, que cobras con efectivo o tarjeta.</div>
+    </div>
+
+    <div class="note tip">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#2e6b2e" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><path d="M8 14.5 l4 4 l8 -9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="txt"><span class="nh">TIP</span> Aplica la promo <b>antes</b> de tocar "Registrar venta": el total ya saldrá con el descuento, listo para cobrar el resto.</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="f-mid">Manual del barista</span><span class="pg">10</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p11 — VENTAS DEL DÍA                                          -->
+<!-- ============================================================ -->
+<div class="page" id="sec-historial">
+  <div class="hdr"><span class="h-right">App POS Inemuri | ES</span></div>
+  <div class="body">
+    <h1 class="sec">Ventas del día</h1>
+    <p class="lead">Aquí ves todo lo que se ha vendido hoy y los totales acumulados. Úsala para revisar, corregir o cancelar.</p>
+
+    <p>Cada venta muestra su <b>folio</b>, el barista (con su color), los productos, el total y una etiqueta de método:
+    <span class="chip" style="background:#006400;color:#fff;border-color:#006400;">EFECTIVO</span>
+    <span class="chip" style="background:#000080;color:#fff;border-color:#000080;">TARJETA</span>
+    <span class="chip" style="background:#800000;color:#fff;border-color:#800000;">PROMO</span>. Abajo, una barra con los totales:</p>
+
+    <div class="fig" style="border:none;">
+      <svg width="100%" viewBox="0 0 520 54" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#111" stroke-width="1" font-family="Arial">
+        <rect x="2" y="2" width="516" height="50" fill="#f2f2f2" stroke="#111" stroke-width=".8"/>
+        <line x1="174" y1="2" x2="174" y2="52" stroke="#ccc"/><line x1="346" y1="2" x2="346" y2="52" stroke="#ccc"/>
+        <text x="88" y="22" text-anchor="middle" font-size="10" fill="#555">💵 Efectivo</text>
+        <text x="88" y="42" text-anchor="middle" font-size="15" font-weight="bold">$1,240</text>
+        <text x="260" y="22" text-anchor="middle" font-size="10" fill="#555">💳 Tarjeta</text>
+        <text x="260" y="42" text-anchor="middle" font-size="15" font-weight="bold">$860</text>
+        <text x="432" y="22" text-anchor="middle" font-size="10" fill="#555">📊 Total</text>
+        <text x="432" y="42" text-anchor="middle" font-size="15" font-weight="bold">$2,100</text>
+      </svg>
+      <div class="cap">Barra de totales del día (ejemplo)</div>
+    </div>
+
+    <h2 class="sub">Corregir o cancelar una venta</h2>
+    <p>Cada venta vigente tiene dos botones:</p>
+    <table class="parts" style="font-size:10px;">
+      <tr><td style="width:24%"><b>Corregir</b></td><td>Vuelve a abrir el pedido para rehacerlo bien. La original queda marcada <em>"reemplazada"</em> (tachada) y la nueva como <em>"↳ Corrección"</em>. El folio lleva una <b>C</b>.</td></tr>
+      <tr><td><b>Cancelar</b></td><td>Anula la venta. Te pide un <b>motivo</b> obligatorio. Queda marcada <span class="chip" style="background:#cc0000;color:#fff;border-color:#cc0000;">CANCELADA</span> y deja de sumar a los totales.</td></tr>
+    </table>
+
+    <div class="note info">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#333" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><circle cx="14" cy="8.5" r="1.3" fill="#333" stroke="none"/><line x1="14" y1="12.5" x2="14" y2="20"/></svg></div>
+      <div class="txt">Nada se borra de verdad: corregir y cancelar dejan rastro a propósito, para que el reporte y el corte cuadren. Por eso, ante un error, <b>corrige o cancela</b> en vez de "arreglarlo por fuera".</div>
+    </div>
+
+    <div class="note tip">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#2e6b2e" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><path d="M8 14.5 l4 4 l8 -9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="txt"><span class="nh">TIP</span> Los totales de esta pantalla son los que vas a comparar contra el efectivo real al cerrar la caja. Revísalos antes del corte.</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="pg-left">11</span><span class="f-mid">Manual del barista</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p12 — PROACTIVOS, COLD BREW Y MIS TAREAS                      -->
+<!-- ============================================================ -->
+<div class="page" id="sec-proactivos">
+  <div class="hdr"><span class="h-left">App POS · Inemuri Café</span></div>
+  <div class="body">
+    <h1 class="sec">Proactivos y Mis tareas</h1>
+
+    <h2 class="sub">Tareas proactivas</h2>
+    <p>La pestaña <b>Proactivos</b> lista las tareas para hacer <b>cuando no hay clientes</b> (limpieza, rellenar insumos,
+    calibrar, etc.), según el día de la semana. Marca cada una al completarla; el contador <span class="chip">hechas / total</span> sube.</p>
+    <p>Arriba hay un interruptor de modo <b>"Proactivos"</b>: actívalo cuando estés trabajando en estas tareas.</p>
+
+    <h2 class="sub">Cold Brew</h2>
+    <p>En la misma pestaña está el <b>registro de preparación del Cold Brew</b>. Cuando prepares un lote:</p>
+    <div class="figrow">
+      <div class="fig" style="flex:0 0 230px;">
+        <svg width="100%" viewBox="0 0 230 96" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#111" stroke-width="1" font-family="Arial" font-size="8.5">
+          <rect x="4" y="4" width="222" height="88" fill="#fff" stroke="#111" stroke-width=".8"/>
+          <text x="12" y="18" font-weight="bold" font-size="9">Cold Brew — Registro</text>
+          <g fill="#555">
+            <text x="12" y="34">Gramos de café</text><rect x="12" y="38" width="92" height="14" fill="#f0ece2" stroke="#111" stroke-width=".5"/>
+            <text x="120" y="34">Molienda (#)</text><rect x="120" y="38" width="92" height="14" fill="#f0ece2" stroke="#111" stroke-width=".5"/>
+            <text x="12" y="64">Hora de preparación</text><rect x="12" y="68" width="92" height="14" fill="#f0ece2" stroke="#111" stroke-width=".5"/>
+            <text x="120" y="64">Infusión (horas)</text><rect x="120" y="68" width="92" height="14" fill="#f0ece2" stroke="#111" stroke-width=".5"/>
+          </g>
+        </svg>
+        <div class="cap">Formulario de Cold Brew</div>
+      </div>
+      <div style="flex:1;">
+        <ol class="steps">
+          <li>Anota <b>gramos</b>, <b>molienda</b>, <b>hora de preparación</b> y <b>horas de infusión</b>.</li>
+          <li>Toca <span class="chip">Confirmar Cold Brew</span>.</li>
+          <li>La app calcula y muestra a qué <b>hora/día hay que filtrarlo</b>, y guarda un aviso para que no se olvide (aparece en <b>Avisos</b>, incluso al día siguiente).</li>
+        </ol>
+        <p class="small muted">Para cambiar algo, toca "Editar datos".</p>
+      </div>
+    </div>
+
+    <h2 class="sub">Mis tareas personales</h2>
+    <p>El botón azul <span class="chip">Mis tareas</span> (bajo tu nombre) abre <b>tus</b> tareas del día: las generales más
+    cualquiera que el Administrador te haya asignado. Marca cada una al terminarla; la barra de progreso se llena.</p>
+    <p>Ahí también aparece el <b>"Estado de la barra al abrir"</b> que registró quien abrió hoy.</p>
+
+    <div class="note tip">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#2e6b2e" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><path d="M8 14.5 l4 4 l8 -9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="txt"><span class="nh">TIP</span> Las tareas marcadas se incluyen en el reporte del día. Mantenerlas al día le da claridad al siguiente turno y al Administrador.</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="f-mid">Manual del barista</span><span class="pg">12</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p13 — INVENTARIO                                              -->
+<!-- ============================================================ -->
+<div class="page" id="sec-inventario">
+  <div class="hdr"><span class="h-right">App POS Inemuri | ES</span></div>
+  <div class="body">
+    <h1 class="sec">Inventario</h1>
+    <p class="lead">Sirve para dejar anotado qué hace falta comprar. Tiene dos pestañas arriba: <b>Diario</b> y <b>Global</b>.</p>
+
+    <h2 class="sub">Inventario diario — compras para mañana</h2>
+    <p>Cada insumo es una fila con tres datos. Tú solo llenas <b>"Quedan"</b> en caso de que haya menos del mínimo:</p>
+
+    <div class="fig" style="border:none;">
+      <svg width="100%" viewBox="0 0 520 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#111" stroke-width=".8" font-family="Arial" font-size="9.5">
+        <text x="6" y="12" font-size="8" fill="#999" letter-spacing="1">LÁCTEOS</text>
+        <!-- encabezado -->
+        <text x="10" y="26" font-size="8" fill="#777">Insumo</text>
+        <text x="330" y="26" font-size="8" fill="#777" text-anchor="middle">Mín.</text>
+        <text x="410" y="26" font-size="8" fill="#777" text-anchor="middle">Quedan</text>
+        <!-- fila OK -->
+        <rect x="6" y="30" width="508" height="15" fill="#fafafa" stroke="#eee"/>
+        <text x="12" y="40.5">Leche entera Alpura</text>
+        <rect x="312" y="32" width="36" height="11" fill="#eee" stroke="#ccc" stroke-width=".5"/><text x="330" y="40.5" text-anchor="middle">4</text>
+        <rect x="386" y="32" width="48" height="11" fill="#f0ece2" stroke="#111" stroke-width=".5"/><text x="410" y="40.5" text-anchor="middle">6</text>
+        <rect x="446" y="32" width="30" height="11" fill="none" stroke="#2e7d32" stroke-width=".8"/><text x="461" y="40.5" text-anchor="middle" fill="#2e7d32" font-size="8">OK</text>
+        <!-- fila Bajo -->
+        <rect x="6" y="47" width="508" height="15" fill="#fdf4f4" stroke="#eee"/>
+        <text x="12" y="57.5">Leche avena Oat-ly</text>
+        <rect x="312" y="49" width="36" height="11" fill="#eee" stroke="#ccc" stroke-width=".5"/><text x="330" y="57.5" text-anchor="middle">4</text>
+        <rect x="386" y="49" width="48" height="11" fill="#fdeaea" stroke="#cc0000" stroke-width=".7"/><text x="410" y="57.5" text-anchor="middle">2</text>
+        <rect x="446" y="49" width="36" height="11" fill="none" stroke="#cc0000" stroke-width=".8"/><text x="464" y="57.5" text-anchor="middle" fill="#cc0000" font-size="8">Bajo</text>
+      </svg>
+      <div class="cap">Una fila con stock suficiente (OK) y otra por debajo del mínimo (Bajo)</div>
+    </div>
+
+    <ol class="steps">
+      <li>Toca el campo <b>"Quedan"</b> del insumo y teclea cuántos hay (usa el teclado en pantalla).</li>
+      <li>La app marca solo: <b style="color:#2e7d32;">OK</b> si hay suficiente, o <b style="color:#cc0000;">Bajo</b> si quedó en el mínimo o menos.</li>
+      <li>Lo <b>"Bajo"</b> es lo que hay que comprar para mañana.</li>
+    </ol>
+    <p>La columna <b>Mín.</b> es el mínimo deseable y no se edita.</p>
+
+    <h3 class="subsub">Cerrar el inventario</h3>
+    <p>Al terminar, toca <span class="chip">Confirmar cierre de inventario</span>. Aparece el sello
+    <b style="color:#2e7d32;">✓ Inventario cerrado</b> con la hora.</p>
+    <div class="note caution">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">IMPORTANTE</span>
+        El inventario se guarda para todos, pero <b>solo el último barista en turno lo cierra oficialmente</b>, y ese
+        cierre es <b>requisito para poder hacer checkout</b> y enviar el reporte.</div>
+    </div>
+
+    <h2 class="sub">Inventario global</h2>
+    <p>La pestaña <b>Global</b> es la revisión <b>semanal</b> detallada de todos los insumos. Aquí la regla
+    <b>cambia</b>: debes <b>llenar el campo "Quedan" de TODOS los insumos</b>, sin importar si están por arriba
+    o por debajo del mínimo.</p>
+    <div class="note caution">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">IMPORTANTE</span>
+        En el inventario global <b>no</b> aplica lo de "solo si hay menos del mínimo": <b>todos los campos deben quedar
+        llenos</b> para poder enviarlo. Si falta alguno, no se podrá confirmar.</div>
+    </div>
+    <p class="small muted">Por ahora la lista es breve; se ampliará más adelante.</p>
+  </div>
+  <div class="ftr"><span class="pg-left">13</span><span class="f-mid">Manual del barista</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p14 — AVISOS                                                  -->
+<!-- ============================================================ -->
+<div class="page" id="sec-avisos">
+  <div class="hdr"><span class="h-left">App POS · Inemuri Café</span></div>
+  <div class="body">
+    <h1 class="sec">Avisos</h1>
+    <p class="lead">Los avisos son recados entre baristas: lo que recibes hoy y lo que dejas para quien abra mañana.</p>
+
+    <h2 class="sub">Avisos recibidos hoy</h2>
+    <p>En la parte de arriba ves los recados que te dejaron. Al hacer check-in, además, el aviso te salta en pantalla.</p>
+    <ol class="steps">
+      <li>Lee el aviso.</li>
+      <li>Toca <span class="chip">✓ Enterado</span> para confirmarlo. Así no vuelve a aparecer (ni al recargar).</li>
+    </ol>
+
+    <h2 class="sub">Dejar un aviso para mañana</h2>
+    <p>Abajo está el formulario <b>"Avisos para el barista del día siguiente"</b>. Hay un espacio por cada barista.</p>
+    <ol class="steps">
+      <li>Escribe tu recado en el cuadro del barista correspondiente.</li>
+      <li>Toca <span class="chip">Enviar</span>. Se mostrará a esa persona cuando haga su check-in mañana.</li>
+    </ol>
+
+    <div class="note warn">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#8a5a00" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#8a5a00" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">CUADRITO EN EL NOMBRE</span>
+        Si un barista tiene un aviso pendiente, junto a su nombre en el menú aparece un pequeño <b>cuadrito con un número</b>.
+        Es el recordatorio de que tiene recados sin leer.</div>
+    </div>
+
+    <h2 class="sub">Alerta de Cold Brew</h2>
+    <p>Si hay un Cold Brew pendiente de filtrar, aparece arriba un aviso amarillo <b>"⏰ Cold Brew pendiente de filtrar"</b>
+    con la hora calculada. Cuando lo filtres, márcalo como filtrado para quitar la alerta.</p>
+
+    <div class="note tip">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#2e6b2e" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><path d="M8 14.5 l4 4 l8 -9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="txt"><span class="nh">TIP</span> Un buen aviso para mañana incluye lo que quedó pendiente, lo que falta comprar y cualquier incidente. Le ahorra problemas a quien abra.</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="f-mid">Manual del barista</span><span class="pg">14</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p15 — CAJA Y CIERRE (LLENAR)                                  -->
+<!-- ============================================================ -->
+<div class="page" id="sec-caja">
+  <div class="hdr"><span class="h-right">App POS Inemuri | ES</span></div>
+  <div class="body">
+    <h1 class="sec">Caja y Cierre</h1>
+    <p class="lead">Es el corte del día: cuadrar el efectivo y enviar el reporte. <b>Solo lo hace el último barista en turno.</b></p>
+
+    <div class="note caution" style="margin-top:0;">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">¿NO TE DEJA ENTRAR?</span> La pestaña está apagada hasta que seas el último en turno. Si otro barista sigue activo, primero debe hacer checkout.</div>
+    </div>
+
+    <p>Arriba, el banner <b>"Cierre por:"</b> muestra tu nombre. Llena las tarjetas de la izquierda:</p>
+
+    <table class="parts" style="font-size:10px;">
+      <tr><td style="width:38%"><b>Cierre de lote en terminal</b></td><td>Las <b>ventas totales con tarjeta</b> y las <b>propinas en terminal</b>, tal como las da la terminal bancaria.</td></tr>
+      <tr><td><b>Fondo del día anterior</b></td><td>Ya viene cargado del cierre de ayer. Si lo cambias a mano, la app exige un <b>motivo</b>.</td></tr>
+      <tr><td><b>Efectivo al cerrar</b></td><td>Cuenta físicamente el efectivo en caja y escríbelo.</td></tr>
+      <tr><td><b>Propinas de tarjeta retiradas</b></td><td>Si retiraste propinas de tarjeta en efectivo, anótalo (se descuenta del fondo).</td></tr>
+      <tr><td><b>Ingresos y Egresos menores</b></td><td>Cualquier entrada/salida de efectivo del día (ej. compra de hielo, retiro de sobrante). Usa <span class="chip">+ Agregar movimiento</span>.</td></tr>
+      <tr><td><b>Nota del turno</b></td><td>Opcional: observaciones, incidentes, pendientes.</td></tr>
+    </table>
+
+    <div class="note info">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#333" stroke-width="1.8"><circle cx="14" cy="14" r="12"/><circle cx="14" cy="8.5" r="1.3" fill="#333" stroke="none"/><line x1="14" y1="12.5" x2="14" y2="20"/></svg></div>
+      <div class="txt"><span class="nh">REGLA DE LA CASA</span>
+        El efectivo se queda <b>íntegro en la caja</b> día con día. Si retiras un sobrante, regístralo como un
+        <b>egreso</b> ("retiro de efectivo sobrante") en Ingresos/Egresos — no hay un botón de "retiro" aparte.</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="pg-left">15</span><span class="f-mid">Manual del barista</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p16 — CAJA Y CIERRE (RESUMEN + ENVÍO)                         -->
+<!-- ============================================================ -->
+<div class="page" id="sec-cierre">
+  <div class="hdr"><span class="h-left">App POS · Inemuri Café</span></div>
+  <div class="body">
+    <h1 class="sec">Cerrar y enviar el reporte</h1>
+
+    <h2 class="sub">Resumen de caja</h2>
+    <p>A la derecha, la app calcula el corte automáticamente. La línea clave es la <b>Diferencia</b>:</p>
+    <div class="fig" style="border:none;">
+      <svg width="100%" viewBox="0 0 360 116" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#111" stroke-width=".7" font-family="Arial" font-size="10">
+        <rect x="2" y="2" width="356" height="112" fill="#fff" stroke="#111" stroke-width=".8"/>
+        <g fill="#222">
+          <text x="12" y="20">Fondo del día anterior</text><text x="348" y="20" text-anchor="end">$1,000</text>
+          <text x="12" y="38">Ventas en efectivo</text><text x="348" y="38" text-anchor="end">$1,240</text>
+          <text x="12" y="56">Propinas retiradas</text><text x="348" y="56" text-anchor="end">−$0</text>
+          <text x="12" y="74">Ingresos/Egresos menores</text><text x="348" y="74" text-anchor="end">−$120</text>
+          <line x1="10" y1="82" x2="350" y2="82" stroke="#ccc"/>
+          <text x="12" y="98" font-weight="bold">Neto esperado</text><text x="348" y="98" text-anchor="end" font-weight="bold">$2,120</text>
+        </g>
+        <text x="12" y="110" font-size="8" fill="#2e7d32">Diferencia $0 = la caja cuadra ✓</text>
+      </svg>
+      <div class="cap">Resumen de caja (ejemplo)</div>
+    </div>
+    <ul class="dash">
+      <li><b>Diferencia $0</b> → la caja cuadra. </li>
+      <li><b>Diferencia positiva/negativa</b> → sobra o falta efectivo. Revisa el conteo, ventas canceladas y movimientos antes de enviar.</li>
+    </ul>
+
+    <h2 class="sub">Orden correcto de cierre</h2>
+    <div class="note caution">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">SIGUE ESTE ORDEN</span>
+        <b>1.</b> Cierra el <b>inventario</b> (p. 13). &nbsp; <b>2.</b> Llena y <b>envía el reporte</b> de caja. &nbsp;
+        <b>3.</b> Haz tu <b>checkout</b>. El botón de checkout no se activa hasta completar 1 y 2.</div>
+    </div>
+
+    <h2 class="sub">Enviar el reporte</h2>
+    <ol class="steps">
+      <li>Revisa la <b>Vista previa del reporte</b> (incluye ventas, caja, tareas y notas).</li>
+      <li>Toca <span class="chip">Generar y enviar reporte</span>.</li>
+      <li>El reporte se guarda y se envía por correo solo. Verás el mensaje verde de confirmación.</li>
+    </ol>
+
+    <div class="note warn">
+      <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#8a5a00" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#8a5a00" stroke="none"/></svg></div>
+      <div class="txt"><span class="nh">OJO</span> Si editaste el "Fondo del día anterior" sin poner motivo, el envío se bloquea hasta que lo escribas. Es una protección, no un error.</div>
+    </div>
+  </div>
+  <div class="ftr"><span class="f-mid">Manual del barista</span><span class="pg">16</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p17 — SOLUCIÓN DE PROBLEMAS (1)                               -->
+<!-- ============================================================ -->
+<div class="page" id="sec-problemas">
+  <div class="hdr"><span class="h-right">App POS Inemuri | ES</span></div>
+  <div class="body">
+    <h1 class="sec">Solución de problemas</h1>
+    <table class="tsh">
+      <tr><th>Problema</th><th>Causa</th><th>Solución</th></tr>
+
+      <tr>
+        <td class="prob">Al abrir, una pantalla teal pide un PIN.</td>
+        <td class="cau"><div class="b-cause">Es el candado diario de seguridad (se pide 1 vez al día).</div></td>
+        <td><div class="b-sol">Teclea <b>0335</b> y toca ENTRAR. <span class="xref">Ver p. 6.</span></div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">No me deja cobrar.</td>
+        <td class="cau"><div class="b-cause">Una bebida tiene la leche sin asignar (barra de leches con marco rojo).</div></td>
+        <td><div class="b-sol">Asigna la leche que falta (te dice cuál: "Falta asignar la leche de…"). <span class="xref">Ver p. 9.</span></div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">Toco una leche y no pasa nada.</td>
+        <td class="cau"><div class="b-cause">No hay ninguna bebida con leche pendiente en la orden.</div></td>
+        <td><div class="b-sol">Primero agrega la bebida; luego toca la leche. La barra asigna a la última bebida agregada.</div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">Mis ventas salen a nombre de otro barista.</td>
+        <td class="cau"><div class="b-cause">El barista "ACTIVO" (en rojo) es otro.</div></td>
+        <td><div class="b-sol">Toca tu nombre en USUARIO ACTUAL para quedar ACTIVO antes de vender. <span class="xref">Ver p. 7.</span></div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">No puedo entrar a "Caja y Cierre" (pestaña apagada).</td>
+        <td class="cau"><div class="b-cause">Todavía no eres el último barista en turno.</div></td>
+        <td><div class="b-sol">Espera a que los demás hagan checkout. Mientras, la app muestra quién sigue activo.</div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">El botón "Checkout" está gris con un aviso amarillo.</td>
+        <td class="cau"><div class="b-cause">Falta cerrar el inventario.</div><div class="b-cause">Falta enviar el reporte de caja.</div></td>
+        <td><div class="b-sol">Cierra el inventario (p. 13) y envía el reporte (p. 16). El botón se activará.</div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">No me deja enviar el reporte.</td>
+        <td class="cau"><div class="b-cause">Editaste el "Fondo del día anterior" sin escribir el motivo.</div></td>
+        <td><div class="b-sol">Escribe el motivo del cambio en el campo que aparece y vuelve a enviar.</div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">Aparece un aviso de "acceso restringido".</td>
+        <td class="cau"><div class="b-cause">Tocaste "Asignar Tareas" o "Reportes", reservadas al Administrador.</div></td>
+        <td><div class="b-sol">No son parte de tu operación. Cierra el aviso y sigue en tus secciones.</div></td>
+      </tr>
+
+    </table>
+  </div>
+  <div class="ftr"><span class="pg-left">17</span><span class="f-mid">Manual del barista</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- p18 — SOLUCIÓN DE PROBLEMAS (2) + PINs                        -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="hdr"><span class="h-left">App POS · Inemuri Café</span></div>
+  <div class="body">
+    <h1 class="sec" style="font-size:18px;">Solución de problemas <span style="font-size:11px;font-weight:400;color:#777;">(continúa)</span></h1>
+    <table class="tsh">
+      <tr><th>Problema</th><th>Causa</th><th>Solución</th></tr>
+
+      <tr>
+        <td class="prob">Me equivoqué en una venta ya registrada.</td>
+        <td class="cau"><div class="b-cause">El producto, la cantidad o el método quedaron mal.</div></td>
+        <td><div class="b-sol">En "Ventas del día" usa <b>Corregir</b> (rehace) o <b>Cancelar</b> (anula con motivo). <span class="xref">Ver p. 11.</span></div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">La caja no cuadra (Diferencia distinta de $0).</td>
+        <td class="cau"><div class="b-cause">Error al contar el efectivo.</div><div class="b-cause">Falta registrar un ingreso/egreso.</div><div class="b-cause">Hay ventas mal cobradas.</div></td>
+        <td><div class="b-sol">Vuelve a contar el efectivo, revisa los movimientos menores y las ventas canceladas/corregidas. <span class="xref">Ver p. 15–16.</span></div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">Un aviso me sigue apareciendo.</td>
+        <td class="cau"><div class="b-cause">No lo has confirmado.</div></td>
+        <td><div class="b-sol">Toca <b>✓ Enterado</b> en el aviso. <span class="xref">Ver p. 14.</span></div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">Sigue la alerta "Cold Brew pendiente de filtrar".</td>
+        <td class="cau"><div class="b-cause">El lote ya se filtró pero no se marcó.</div></td>
+        <td><div class="b-sol">Márcalo como filtrado para quitar la alerta. <span class="xref">Ver p. 12 y 14.</span></div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">La app se ve chiquita o apretada.</td>
+        <td class="cau"><div class="b-cause">Está diseñada para el iPad de la barra. En un teléfono se reescala.</div></td>
+        <td><div class="b-sol">Úsala en el iPad. En teléfono puedes hacer <b>pinch-zoom</b> con dos dedos para acercar.</div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">Se reinició el iPad a media venta / cierre.</td>
+        <td class="cau"><div class="b-cause">Corte de energía o cierre accidental.</div></td>
+        <td><div class="b-sol">La app guarda respaldo automático: al volver a entrar, recupera lo último (ventas, caja, formulario).</div></td>
+      </tr>
+
+      <tr>
+        <td class="prob">Nada de lo anterior resuelve el problema.</td>
+        <td class="cau"><div class="b-cause">Falla no contemplada aquí.</div></td>
+        <td><div class="b-sol">Anótalo en la "Nota del turno" y en un aviso, y avísale al Administrador.</div></td>
+      </tr>
+    </table>
+
+    <h2 class="sub">PIN y datos útiles</h2>
+    <div style="display:flex; gap:12px;">
+      <div class="note" style="flex:1; background:#f4f4f4;">
+        <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#111" stroke-width="1.6"><rect x="4" y="6" width="20" height="16" rx="2"/><rect x="7.5" y="9.5" width="5" height="4"/><rect x="14" y="9.5" width="6.5" height="1.6" fill="#111" stroke="none"/><rect x="14" y="13" width="6.5" height="1.6" fill="#111" stroke="none"/><rect x="7.5" y="17" width="13" height="1.6" fill="#111" stroke="none"/></svg></div>
+        <div class="txt"><span class="nh">CANDADO DIARIO</span>
+          PIN <span class="pin">0335</span> — para entrar a la app al inicio del día.<br>
+          <span class="small muted">No se comparte con clientes.</span></div>
+      </div>
+      <div class="note" style="flex:1; background:#f4f4f4;">
+        <div class="ico"><svg viewBox="0 0 28 28" fill="none" stroke="#a02525" stroke-width="1.8"><path d="M14 3 L26 25 L2 25 Z" stroke-linejoin="round"/><line x1="14" y1="11" x2="14" y2="18"/><circle cx="14" cy="21.5" r="1.1" fill="#a02525" stroke="none"/></svg></div>
+        <div class="txt"><span class="nh">SOLO ADMINISTRADOR</span>
+          Las secciones "Asignar Tareas", "Reportes" y la configuración (⚙) tienen su propio PIN y son <b>solo del Administrador</b>.</div>
+      </div>
+    </div>
+  </div>
+  <div class="ftr"><span class="f-mid">Manual del barista</span><span class="pg">18</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- CONTRAPORTADA                                                 -->
+<!-- ============================================================ -->
+<div class="cover">
+  <div style="position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); text-align:center;">
+    <svg width="70" height="70" viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#111" stroke-width="1.6">
+      <path d="M22 40 q0 22 13 22 q13 0 13 -22 Z"/>
+      <path d="M48 44 q14 0 14 9 q0 9 -14 9" stroke-width="1.4"/>
+      <path d="M28 33 q4 -8 0 -15 M35 33 q4 -8 0 -15 M42 33 q4 -8 0 -15" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:20px; font-weight:800; letter-spacing:1px; margin-top:14px;">INEMURI CAFÉ</div>
+    <div style="width:40mm; height:2px; background:#000; margin:10px auto;"></div>
+    <div style="font-size:11px; color:#444; line-height:1.8;">
+      Manual del barista · App POS<br>
+      Col. Nápoles, Ciudad de México<br>
+      pos.inemuri.cafe · inemuri.cafe@gmail.com
+    </div>
+    <div style="font-size:9px; color:#999; margin-top:26px;">Documento de uso interno · Edición 2026</div>
+  </div>
+</div>
+
+</body>
+</html>
