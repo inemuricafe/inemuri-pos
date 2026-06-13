@@ -1556,6 +1556,11 @@ html,body { background:#008080 !important; height:100%; overflow:hidden; }
 .section { display:none; height:100%; overflow-y:auto; padding-bottom:16px; }
 .section.active { display:block; }
 #sec-ventas.section.active { padding-bottom:0 !important; }
+/* v112: "Ventas del día" (#sec-historial) ocupa TODA la ventana (ancho y alto completos) */
+#sec-historial.section.active { display:flex !important; flex-direction:column !important; height:100% !important; padding-bottom:0 !important; overflow:hidden !important; }
+#sec-historial > .card { flex:1 1 auto !important; min-height:0 !important; height:100% !important; display:flex !important; flex-direction:column !important; overflow:hidden !important; width:100% !important; }
+#sec-historial .ventas-list { flex:1 1 auto !important; min-height:0 !important; max-height:none !important; overflow-y:auto !important; }
+#sec-historial #ventas-totales-bar { flex:0 0 auto !important; }
 .ventas-layout { display:grid !important; grid-template-columns:1fr 300px !important; gap:8px !important; height:100% !important; }
 
 /* Cards */
@@ -2043,7 +2048,7 @@ input[type="time"], input[type="date"], textarea, select {
     <!-- Barra de título -->
     <div id="win-title-bar">
       <div id="win-title-icon">☕</div>
-      <div id="win-title-text">Inemuri Café v5.4 — POS</div>
+      <div id="win-title-text">Inemuri Café v5.5 — POS</div>
       <div id="win-title-btns">
         <div class="win-ctrl-btn">_</div>
         <div class="win-ctrl-btn">□</div>
@@ -6674,6 +6679,43 @@ function mostrarModalApertura(nombre){
   });
 }
 
+// ── v112: ENTREGA POST CHECK-IN (centralizado para los 3 caminos de check-in) ──
+// Tras el check-in de un barista entrega: (1) la pregunta "¿Cómo encontraste la barra?"
+// si aún no se hizo hoy (gobernada por deberíaMostrarApertura(), día-scoped y persistente),
+// y (2) su aviso pendiente ~2 s DESPUÉS del check-in. El aviso es por barista y solo se
+// muestra a ese barista; si no hace check-in queda pendiente (vive en el Sheet + en
+// avisosPendientes) hasta que lo haga, aunque sea otro día. Al dar "Enterado" se marca como
+// leído (inemuri_avisos_leidos) para no repetirlo.
+function entregarPostCheckin(nombre, callback){
+  // (2) Aviso pendiente para ESTE barista → ~2 s después del check-in.
+  const av=avisosPendientes[nombre];
+  if(av && av.texto && !avisoEstaLeido(nombre,av)){
+    const mostrar=function(){
+      // Si la pregunta de barra sigue abierta, esperar a que se cierre para no encimar modales.
+      if(document.getElementById('apertura-modal-overlay')){ setTimeout(mostrar,400); return; }
+      try{ mostrarModalAviso(nombre); }catch(e){}
+    };
+    setTimeout(mostrar, 2000);
+  }
+  // (1) Pregunta de estado de la barra (1 vez al día).
+  if(deberíaMostrarApertura()){
+    window._aperturaGuardada=false;
+    mostrarModalApertura(nombre);
+    if(callback){
+      const wc=setInterval(function(){
+        if(!document.getElementById('apertura-modal-overlay')){
+          clearInterval(wc);
+          if(window._aperturaGuardada) callback();
+        }
+      },200);
+    }
+  } else {
+    const destino=window._seccionOrigen||'ventas';
+    switchTab(destino);
+    if(callback) callback();
+  }
+}
+
 // ── MODAL CHECK-IN DESDE SECCIÓN BLOQUEADA ──
 function mostrarModalCheckin(callback){
   window._seccionOrigen=seccionActual();
@@ -6703,44 +6745,14 @@ function mostrarModalCheckin(callback){
     if(btn.dataset.salio==='true')return;
     btn.addEventListener('click',()=>{
       const n=btn.dataset.n;
-      const yaEnTurno=btn.dataset.ya==='true';
+      nuevoDiaSiCorresponde(); // v112: cambio de día limpio antes del check-in
+      const yaEnTurno=turnos[n]&&!turnos[n].salida;
       if(!yaEnTurno)turnos[n]={entrada:now(),salidaComer:'',regresoComer:'',salida:''};
       baristaActivo=n;marcandoComo=n;
       renderBaristaSelector();renderMarcandoBar();renderTurnoCards();updateCierreBanner();
       overlay.remove();
-      if(!primerCheckinHecho){ primerCheckinHecho=true; }
-      // Preguntar estado de barra si nadie lo ha hecho hoy (independiente del turno)
-      if(deberíaMostrarApertura()){
-        window._aperturaGuardada=false;
-        if(avisosPendientes[n]&&avisosPendientes[n].texto){
-          mostrarModalAviso(n);
-          const wi=setInterval(()=>{
-            if(!document.getElementById('aviso-modal-overlay')){
-              clearInterval(wi); mostrarModalApertura(n);
-            }
-          },300);
-        } else {
-          mostrarModalApertura(n);
-        }
-        // Esperar a que el modal APAREZCA primero, luego ejecutar callback al cerrarse
-        const waitApertura = setInterval(()=>{
-          if(document.getElementById('apertura-modal-overlay')){
-            clearInterval(waitApertura);
-            // Ahora sí esperar a que se cierre
-            const waitClose = setInterval(()=>{
-              if(!document.getElementById('apertura-modal-overlay')){
-                clearInterval(waitClose);
-                // Solo continuar la venta si la apertura SÍ fue guardada
-                if(window._aperturaGuardada && callback) callback();
-              }
-            }, 200);
-          }
-        }, 100);
-      } else {
-        const destino=window._seccionOrigen||'ventas';
-        switchTab(destino);
-        if(callback)callback();
-      }
+      if(!primerCheckinHecho) primerCheckinHecho=true;
+      entregarPostCheckin(n, callback); // v112: pregunta de barra + aviso (2s) centralizados
     });
   });
   document.getElementById('checkin-cancel-btn').addEventListener('click',()=>overlay.remove());
@@ -6959,6 +6971,8 @@ function guardarSesionDebounced(seccion, datos) {
 
 async function cargarSesionDesdeServidor() {
   if (!APPS_SCRIPT_URL) return;
+  // v112: si hubo cambio de día, la sesión del servidor es de ayer → NO restaurar; resetearla.
+  if (_sesionDiaObsoleta) { try{ resetearSesionServidor(); }catch(e){} return; }
   const r = await api('leer_sesion', {});
   if (!r || !r.sesion) return;
   const s = r.sesion;
@@ -7357,8 +7371,8 @@ function mostrarModalAviso(nombre){
   document.body.appendChild(overlay);
   document.getElementById('aviso-modal-ok').addEventListener('click',()=>{
     overlay.remove();
-    // Marcar como leído — eliminar de pendientes
-    delete avisosPendientes[nombre];
+    // v112: marcar como ENTREGADO/leído de forma persistente (inemuri_avisos_leidos) para no repetirlo.
+    try{ marcarAvisoLeido(nombre); }catch(e){ delete avisosPendientes[nombre]; }
   });
 }
 
@@ -8244,6 +8258,67 @@ function limpiarBackupsViejos(){
     borrar.forEach(function(k){localStorage.removeItem(k);});
   }catch(e){}
 }
+// ── v112: CAMBIO DE DÍA LIMPIO ──────────────────────────────────────────────
+// Si el estado guardado/en memoria pertenece a un día anterior, se ARCHIVA y se
+// LIMPIA para que el día nuevo empiece en cero (sin perder lo de ayer). Se invoca
+// al cargar la app y en cada check-in. El "día de operación" se guarda en
+// localStorage['inemuri_dia_operacion'] (formato es-MX, igual que fechaCorta()/los backups).
+let _sesionDiaObsoleta=false; // la sesión del servidor también es de ayer → no restaurar
+function diaOperacionHoy(){ return new Date().toLocaleDateString('es-MX'); }
+function archivarDiaAnterior(dia){
+  try{
+    const arch={fecha:dia, archivadoEl:new Date().toISOString(),
+      ventas:ventas, ventaCount:ventaCount, turnos:turnos,
+      // v112: también se archivan las TAREAS completadas de ayer (proactivos + personales + espontáneas)
+      tareasHorasProactivos:tareasHorasProactivos, tareasHorasPorBarista:tareasHorasPorBarista, tareasEspontaneas:tareasEspontaneas,
+      cierreForm:(typeof leerCierreFormDOM==='function'?leerCierreFormDOM():null)};
+    const hayDatos=(arch.ventas&&arch.ventas.length)||(arch.turnos&&Object.keys(arch.turnos).length)
+      ||(arch.tareasHorasProactivos&&Object.keys(arch.tareasHorasProactivos).length)
+      ||(arch.tareasHorasPorBarista&&Object.keys(arch.tareasHorasPorBarista).length);
+    if(hayDatos) localStorage.setItem('inemuri_archivo_'+dia, JSON.stringify(arch));
+  }catch(e){}
+}
+function limpiarEstadoDelDia(){
+  ventas=[]; ventaCount=0;
+  turnos={}; turnosHistorial={};
+  // v112: las TAREAS completadas también se reinician → el día nuevo empieza SIN marcar.
+  // (historialTareas NO se toca: es el registro "última vez hecha" del Sheet que gobierna la frecuencia.)
+  tareasHorasProactivos={}; tareasHorasPorBarista={}; tareasEspontaneas=[];
+  reporteEnviado=false; inventarioCerrado=false; primerCheckinHecho=false;
+  // El fondo del día (inemuri_fondo_caja) NO se toca: el cierre de ayer es el fondo de hoy.
+  try{ ['lote-ventas','lote-propinas','propinas-monto','nota-texto'].forEach(function(id){const e=document.getElementById(id);if(e)e.value='';}); }catch(e){}
+  try{ const pl=document.getElementById('pagos-list'); if(pl){ pl.innerHTML=''; if(typeof addPago==='function') addPago(); } }catch(e){}
+  try{ if(typeof renderVentas==='function') renderVentas(); }catch(e){}
+  try{ if(typeof renderBaristaSelector==='function') renderBaristaSelector(); if(typeof renderTurnoCards==='function') renderTurnoCards(); }catch(e){}
+  try{ if(typeof renderTareas==='function') renderTareas(); }catch(e){}
+  try{ if(typeof renderEspLista==='function') renderEspLista(); }catch(e){}
+  try{ if(typeof updateProgress==='function') updateProgress(); }catch(e){}
+  try{ if(typeof calcularCaja==='function') calcularCaja(); }catch(e){}
+}
+// Sobrescribe la "sesión actual" del backend con una vacía (para que la de ayer no reaparezca).
+function resetearSesionServidor(){
+  if(!APPS_SCRIPT_URL) return;
+  try{ api('guardar_sesion',{seccion:'ventas',barista:'',datos:{lista:[]}}); }catch(e){}
+  try{ api('guardar_sesion',{seccion:'turnos',barista:'',datos:{}}); }catch(e){}
+  try{ api('guardar_sesion',{seccion:'proactivos',barista:'',datos:{}}); }catch(e){} // v112: tareas en cero
+}
+// Devuelve true si detectó (y procesó) un cambio de día.
+function nuevoDiaSiCorresponde(){
+  let diaPrev=null; try{ diaPrev=localStorage.getItem('inemuri_dia_operacion'); }catch(e){}
+  const hoy=diaOperacionHoy();
+  if(diaPrev && diaPrev!==hoy){
+    archivarDiaAnterior(diaPrev);
+    limpiarEstadoDelDia();
+    _sesionDiaObsoleta=true;
+    try{ resetearSesionServidor(); }catch(e){}
+    try{ localStorage.setItem('inemuri_dia_operacion', hoy); }catch(e){}
+    try{ limpiarBackupsViejos(); }catch(e){}
+    try{ mostrarToast('Día nuevo: ventas reiniciadas en cero',2500); }catch(e){}
+    return true;
+  }
+  try{ localStorage.setItem('inemuri_dia_operacion', hoy); }catch(e){}
+  return false;
+}
 // Captura los campos del formulario de Caja y Cierre (para que un reinicio no los pierda)
 function leerCierreFormDOM(){
   const g=id=>{const e=document.getElementById(id);return e?e.value:'';};
@@ -8477,6 +8552,7 @@ function cerrarManual(){ const w=document.getElementById('manual-window'); if(w)
 
 // ── INIT ──
 function init(){
+  nuevoDiaSiCorresponde(); // v112: cambio de día limpio al cargar (archiva ayer, marca sesión servidor obsoleta)
   if(restaurarBackup()){
     setTimeout(function(){
       renderVentas();renderBaristaSelector();renderTurnoCards();renderTabs();
@@ -8674,6 +8750,7 @@ function renderBaristaSelector(){
     btn.dataset.barista=b.nombre;
     btn.addEventListener('click',()=>{
       window._seccionOrigen=seccionActual();
+      nuevoDiaSiCorresponde(); // v112: cambio de día limpio antes del check-in
       const t=turnos[b.nombre];
       if(!t || t.salida){
         mostrarConfirmCheckin(b,()=>{
@@ -8683,44 +8760,14 @@ function renderBaristaSelector(){
           turnos[b.nombre]={entrada:now(),salidaComer:'',regresoComer:'',salida:'',turno:turnoCounter[b.nombre]};
           baristaActivo=b.nombre;marcandoComo=b.nombre;
           renderBaristaSelector();renderMarcandoBar();renderTurnoCards();updateCierreBanner();
-          if(!primerCheckinHecho){
-            primerCheckinHecho=true;
-            // Mostrar aviso primero si existe, luego apertura
-            if(avisosPendientes[b.nombre]&&avisosPendientes[b.nombre].texto){
-              mostrarModalAviso(b.nombre);
-              // La apertura se mostrará cuando cierren el aviso — cadena manual
-              const waitForAviso=setInterval(()=>{
-                if(!document.getElementById('aviso-modal-overlay')){
-                  clearInterval(waitForAviso);mostrarModalApertura(b.nombre);
-                }
-              },300);
-            } else {
-              if(deberíaMostrarApertura()) mostrarModalApertura(b.nombre); else switchTab(window._seccionOrigen||'mis-tareas');
-            }
-          } else {
-            mostrarModalAviso(b.nombre);
-            switchTab(window._seccionOrigen||'ventas');
-          }
+          if(!primerCheckinHecho) primerCheckinHecho=true;
+          entregarPostCheckin(b.nombre, null); // v112: pregunta de barra + aviso (2s)
         });
       } else {
         baristaActivo=b.nombre;marcandoComo=b.nombre;
         renderBaristaSelector();renderMarcandoBar();updateCierreBanner();
-        if(!primerCheckinHecho){
-          primerCheckinHecho=true;
-          if(avisosPendientes[b.nombre]&&avisosPendientes[b.nombre].texto){
-            mostrarModalAviso(b.nombre);
-            const waitAv=setInterval(()=>{
-              if(!document.getElementById('aviso-modal-overlay')){
-                clearInterval(waitAv);mostrarModalApertura(b.nombre);
-              }
-            },300);
-          } else {
-            if(deberíaMostrarApertura()) mostrarModalApertura(b.nombre); else switchTab(window._seccionOrigen||'mis-tareas');
-          }
-        } else {
-          mostrarModalAviso(b.nombre);
-          switchTab(window._seccionOrigen||'ventas');
-        }
+        if(!primerCheckinHecho) primerCheckinHecho=true;
+        entregarPostCheckin(b.nombre, null); // v112: pregunta de barra + aviso (2s)
       }
     });
     el.appendChild(btn);
@@ -8774,16 +8821,12 @@ function renderTurnoCards(targetEl, soloNombre){
         window._seccionOrigen=seccionActual();
         function aplicar(){
         if(act==='checkin'){
+          nuevoDiaSiCorresponde(); // v112: cambio de día limpio antes del check-in
           turnoCounter[n]=(turnoCounter[n]||0)+1;
           turnos[n]={entrada:now(),salidaComer:'',regresoComer:'',salida:'',turno:turnoCounter[n]};
           baristaActivo=n;marcandoComo=n;renderBaristaSelector();
-          if(!primerCheckinHecho){
-            primerCheckinHecho=true;
-            if(avisosPendientes[n]&&avisosPendientes[n].texto){
-              mostrarModalAviso(n);
-              const wi=setInterval(()=>{if(!document.getElementById('aviso-modal-overlay')){clearInterval(wi);mostrarModalApertura(n);}},300);
-            } else { if(deberíaMostrarApertura()) mostrarModalApertura(n); else switchTab(window._seccionOrigen||'mis-tareas'); }
-          } else { mostrarModalAviso(n);switchTab(window._seccionOrigen||'ventas'); }
+          if(!primerCheckinHecho) primerCheckinHecho=true;
+          entregarPostCheckin(n, null); // v112: pregunta de barra + aviso (2s)
         }
         else if(act==='s-comer')turnos[n].salidaComer=now();
         else if(act==='r-comer')turnos[n].regresoComer=now();
@@ -9202,6 +9245,7 @@ function cobrar(){
       orig.corregidaPor=baristaActivo||'-';
       ventas.push({
         folio: orig.folio+'C',
+        dia: fechaCorta(),
         resumen: items.map(([n,d])=>d.qty>1?d.qty+'× '+n:n).join(', '),
         total, barista:baristaActivo, color:colorOf(baristaActivo),
         metodo: total===0?'promo':metodoPago, // v111: 'promo' SOLO si la venta queda en $0; si no, el método real
@@ -9226,7 +9270,7 @@ function cobrar(){
     return;
   }
   ventaCount++;
-  ventas.push({folio:folio(ventaCount),resumen:items.map(([n,d])=>d.qty>1?d.qty+'× '+n:n).join(', '),total,barista:baristaActivo,color:colorOf(baristaActivo),metodo:total===0?'promo':metodoPago,detalle:JSON.parse(JSON.stringify(orden)),pagoCliente,cliente:clientePestanaActiva(),...promoData});
+  ventas.push({folio:folio(ventaCount),dia:fechaCorta(),resumen:items.map(([n,d])=>d.qty>1?d.qty+'× '+n:n).join(', '),total,barista:baristaActivo,color:colorOf(baristaActivo),metodo:total===0?'promo':metodoPago,detalle:JSON.parse(JSON.stringify(orden)),pagoCliente,cliente:clientePestanaActiva(),...promoData});
   promoActiva=null;actualizarDisplayPromo();
   orden={};document.getElementById('pago-cliente').value='';document.getElementById('cambio-display').textContent='—';document.getElementById('cambio-display').className='cambio-result-num';
   resetMetodoPago(); // v111: la próxima venta vuelve a exigir elegir método
@@ -9417,13 +9461,15 @@ function calcularCaja(){
   const fondo=fondoAnteriorVal();
   // v111 (cuadre): a la caja física SOLO entra el efectivo; las ventas con tarjeta se concilian por el lote de terminal.
   const efectivo=ventas.filter(v=>!v.cancelada&&!v.corregida&&v.metodo==='efectivo').reduce((s,v)=>s+v.total,0);
-  // Efectivo esperado en caja = fondo + ventas en efectivo − propinas retiradas en efectivo + (ingresos − egresos)
-  const neto=fondo+efectivo-prop+mov.neto;
-  // v111: "Efectivo al cerrar" es un campo CALCULADO de SOLO LECTURA = neto esperado. Solo se ajusta vía Ingresos/Egresos.
+  // v112: efectivo esperado = fondo + ventas en efectivo − propinas retiradas + INGRESOS.
+  // Los EGRESOS se registran (siguen visibles en movimientos y reporte) pero NO se restan del efectivo.
+  const neto=fondo+efectivo-prop+mov.ingresos;
+  // v111: "Efectivo al cerrar" es un campo CALCULADO de SOLO LECTURA = neto esperado. Solo se ajusta vía Ingresos.
   const cierreEl=document.getElementById('cierre-monto');
   if(cierreEl){ const cur=parseFloat(cierreEl.value); if(!(cur===neto)) cierreEl.value=neto; }
   const resFondo=document.getElementById('res-fondo');if(resFondo)resFondo.textContent='$'+fondo;
-  document.getElementById('res-pagos').textContent=mov.neto===0?'$0':(mov.neto>0?'+ $'+mov.neto:'− $'+Math.abs(mov.neto));
+  // v112: solo los ingresos afectan la caja; los egresos se muestran como registro.
+  document.getElementById('res-pagos').textContent=(mov.ingresos>0?'+ $'+mov.ingresos:'$0')+(mov.egresos>0?'  (egresos $'+mov.egresos+' — registro)':'');
   document.getElementById('res-propinas').textContent=prop?'− $'+prop:'$0';
   document.getElementById('res-neto').textContent='$'+neto;
   document.getElementById('res-cierre').textContent='$'+neto;
@@ -9809,13 +9855,15 @@ function buildReporte(checkoutHora){
   if(prop)r+='  (−) Propinas retiradas en ef.    $'+prop+'\n';
   if(movRep.detalle.length){
     if(movRep.ingresos>0)r+='  (+) Ingresos menores               $'+movRep.ingresos+'\n';
-    if(movRep.egresos>0)r+='  (−) Egresos menores                $'+movRep.egresos+'\n';
-    movRep.detalle.forEach(d=>{r+='       '+(d.tipo==='ingreso'?'(+)':'(−)')+' '+d.concepto+': $'+d.monto+'\n';});
+    if(movRep.egresos>0)r+='  (registro) Egresos menores         $'+movRep.egresos+'  (NO se resta del efectivo)\n';
+    movRep.detalle.forEach(d=>{r+='       '+(d.tipo==='ingreso'?'(+)':'(reg)')+' '+d.concepto+': $'+d.monto+'\n';});
   }
-  const neto=fondo+totalEfectivo-(prop||0)+movRep.neto;
+  // v112: el efectivo esperado suma INGRESOS pero NO resta egresos (los egresos quedan solo como registro).
+  const neto=fondo+totalEfectivo-(prop||0)+movRep.ingresos;
   r+='      '+'─'.repeat(32)+'\n';
   r+='  Efectivo esperado al cerrar      $'+neto+'  (calculado)\n';
   r+='  (Las ventas con tarjeta NO entran a la caja: se concilian por el lote de la terminal.)\n';
+  r+='  (Los egresos —pan, galletas, insumos— se registran pero NO se restan del efectivo.)\n';
   r+='─'.repeat(44)+'\n\n';
   if(cb){r+='COLD BREW\n  Café: '+cb.gramos+'g  |  Molienda #'+cb.molienda+'  |  Preparado: '+cb.horaEntrada+'\n  Infusión: '+cb.horasInfusion+' hrs  →  Filtrar: '+cb.filtradoStr+'\n\n';}
   const proDone=hoy.filter(ta=>thPro[TAREAS.indexOf(ta)]);
@@ -10154,7 +10202,7 @@ window.addEventListener('focus', verificarCambioDia);
   <div id="win-taskbar">
     <div id="win-start-btn"><span style="font-size:13px;">🪟</span><span>Inicio</span></div>
     <div style="width:1px;height:20px;background:#808080;box-shadow:1px 0 0 #fff;margin:0 2px;flex-shrink:0;"></div>
-    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v5.4</span></div>
+    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v5.5</span></div>
     <div style="margin-left:auto;display:flex;align-items:center;">
       <div id="win-taskbar-clock" style="padding:0 8px;height:22px;display:flex;align-items:center;gap:5px;font-size:11px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span>🔊</span><span id="win-clock">00:00</span></div>
       <div id="win-taskbar-climate" style="padding:0 8px;height:22px;display:flex;align-items:center;font-size:11px;gap:3px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span id="win-weather">🌤 —°C</span></div>
