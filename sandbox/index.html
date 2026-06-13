@@ -6155,8 +6155,8 @@ void main() {
           <div id="fondo-motivo-wrap" style="display:none;margin-top:5px;">
             <input class="field-input" type="text" id="fondo-motivo" placeholder="Motivo del cambio (obligatorio)…" oninput="onMotivoFondo()" style="width:100%;box-sizing:border-box;text-align:left;"/>
           </div>
-          <div class="field-row" style="border:none;"><span class="field-label">Efectivo esperado al cerrar</span><input class="field-input" type="number" id="cierre-monto" placeholder="$0" readonly tabindex="-1" title="Calculado automáticamente. Ajusta con Ingresos/Egresos." style="background:#e0e0e0;color:#000;cursor:default;"/></div>
-          <div style="font-size:10px;color:#bbb;margin:0;padding:0 !important;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Calculado: fondo + efectivo − propinas + (ingresos−egresos). Ajusta con movimientos.</div>
+          <div class="field-row" style="border:none;"><span class="field-label">Efectivo esperado al cerrar</span><input class="field-input" type="text" id="cierre-monto" placeholder="$0" readonly tabindex="-1" title="Calculado automáticamente (dos cifras: sin y con ingresos/egresos)." style="background:#e0e0e0;color:#000;cursor:default;font-size:11px;text-align:right;"/></div>
+          <div style="font-size:10px;color:#bbb;margin:0;padding:0 !important;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">SIN i/e = fondo + efectivo − propinas. CON i/e = SIN + ingresos − egresos.</div>
         </div>
         <div class="card">
           <div class="card-title">Propinas de tarjetas retiradas en efectivo</div>
@@ -6186,9 +6186,9 @@ void main() {
           <div class="field-row"><span class="field-label">Fondo del día anterior</span><span class="field-val" id="res-fondo">$0</span></div>
           <div class="field-row"><span class="field-label">Ventas en efectivo</span><span class="field-val" id="res-ventas">$0</span></div>
           <div class="field-row"><span class="field-label">Propinas retiradas</span><span class="field-val" id="res-propinas">$0</span></div>
-          <div class="field-row"><span class="field-label">Ingresos/Egresos menores</span><span class="field-val" id="res-pagos">$0</span></div>
-          <div class="field-row"><span class="field-label">Neto esperado</span><span class="field-val" id="res-neto">$0</span></div>
-          <div class="field-row"><span class="field-label">Efectivo al cerrar</span><span class="field-val" id="res-cierre">—</span></div>
+          <div class="field-row"><span class="field-label">Ingresos/Egresos (registro)</span><span class="field-val" id="res-pagos">$0</span></div>
+          <div class="field-row"><span class="field-label">Efectivo SIN ingresos/egresos</span><span class="field-val" id="res-neto">$0</span></div>
+          <div class="field-row"><span class="field-label">Efectivo CON ingresos/egresos</span><span class="field-val" id="res-cierre">—</span></div>
           <div class="field-row" style="border:none;"><span class="field-label" style="font-weight:700;">Diferencia</span><span class="field-val" id="res-diff" style="font-weight:700;">—</span></div>
         </div>
         <div class="card">
@@ -9468,18 +9468,20 @@ function calcularCaja(){
   const fondo=fondoAnteriorVal();
   // v111 (cuadre): a la caja física SOLO entra el efectivo; las ventas con tarjeta se concilian por el lote de terminal.
   const efectivo=ventas.filter(v=>!v.cancelada&&!v.corregida&&v.metodo==='efectivo').reduce((s,v)=>s+v.total,0);
-  // v112: efectivo esperado = fondo + ventas en efectivo − propinas retiradas + INGRESOS.
-  // Los EGRESOS se registran (siguen visibles en movimientos y reporte) pero NO se restan del efectivo.
-  const neto=fondo+efectivo-prop+mov.ingresos;
-  // v111: "Efectivo al cerrar" es un campo CALCULADO de SOLO LECTURA = neto esperado. Solo se ajusta vía Ingresos.
+  // v112 (#5 corregido): ni ingresos ni egresos modifican el efectivo BASE; AMBOS solo se registran.
+  //   BASE (SIN i/e) = fondo + ventas en efectivo − propinas retiradas en efectivo
+  //   CON i/e        = BASE + ingresos − egresos   (efectivo real que queda)
+  const base=fondo+efectivo-prop;
+  const con=base+mov.ingresos-mov.egresos;
+  // El campo "Efectivo esperado al cerrar" (solo lectura) muestra LAS DOS cifras.
   const cierreEl=document.getElementById('cierre-monto');
-  if(cierreEl){ const cur=parseFloat(cierreEl.value); if(!(cur===neto)) cierreEl.value=neto; }
+  if(cierreEl){ const txt='SIN i/e: $'+base+'   ·   CON i/e: $'+con; if(cierreEl.value!==txt) cierreEl.value=txt; }
   const resFondo=document.getElementById('res-fondo');if(resFondo)resFondo.textContent='$'+fondo;
-  // v112: solo los ingresos afectan la caja; los egresos se muestran como registro.
-  document.getElementById('res-pagos').textContent=(mov.ingresos>0?'+ $'+mov.ingresos:'$0')+(mov.egresos>0?'  (egresos $'+mov.egresos+' — registro)':'');
+  // Ingresos y egresos: solo registro (no afectan el efectivo).
+  document.getElementById('res-pagos').textContent=(mov.ingresos>0?'+ $'+mov.ingresos:'$0')+(mov.egresos>0?' / − $'+mov.egresos:'')+'  (registro)';
   document.getElementById('res-propinas').textContent=prop?'− $'+prop:'$0';
-  document.getElementById('res-neto').textContent='$'+neto;
-  document.getElementById('res-cierre').textContent='$'+neto;
+  document.getElementById('res-neto').textContent='$'+base;
+  document.getElementById('res-cierre').textContent='$'+con;
   // El efectivo al cerrar es el valor calculado → la diferencia es 0 por construcción (ya no es conteo físico vs esperado).
   const diffEl=document.getElementById('res-diff');
   diffEl.textContent='$0 — calculado (sin conteo manual)';diffEl.style.color='#2e7d32';
@@ -9826,7 +9828,6 @@ function buildReporte(checkoutHora){
   const totalGlobal=_vig.reduce((s,v)=>s+v.total,0);
   const totalEfectivo=_vig.filter(v=>v.metodo==='efectivo').reduce((s,v)=>s+v.total,0);
   const totalTarjeta=_vig.filter(v=>v.metodo==='tarjeta').reduce((s,v)=>s+v.total,0);
-  const cierre=parseFloat(document.getElementById('cierre-monto').value)||0;
   const prop=parseFloat(document.getElementById('propinas-monto').value)||0;
   const loteV=parseFloat(document.getElementById('lote-ventas').value)||0;
   const loteP=parseFloat(document.getElementById('lote-propinas').value)||0;
@@ -9861,16 +9862,18 @@ function buildReporte(checkoutHora){
   r+='  (+) Ventas en efectivo del día    $'+totalEfectivo+'\n';
   if(prop)r+='  (−) Propinas retiradas en ef.    $'+prop+'\n';
   if(movRep.detalle.length){
-    if(movRep.ingresos>0)r+='  (+) Ingresos menores               $'+movRep.ingresos+'\n';
-    if(movRep.egresos>0)r+='  (registro) Egresos menores         $'+movRep.egresos+'  (NO se resta del efectivo)\n';
-    movRep.detalle.forEach(d=>{r+='       '+(d.tipo==='ingreso'?'(+)':'(reg)')+' '+d.concepto+': $'+d.monto+'\n';});
+    if(movRep.ingresos>0)r+='  (registro) Ingresos menores        $'+movRep.ingresos+'  (NO afecta el efectivo base)\n';
+    if(movRep.egresos>0)r+='  (registro) Egresos menores         $'+movRep.egresos+'  (NO afecta el efectivo base)\n';
+    movRep.detalle.forEach(d=>{r+='       (reg) '+(d.tipo==='ingreso'?'+':'−')+' '+d.concepto+': $'+d.monto+'\n';});
   }
-  // v112: el efectivo esperado suma INGRESOS pero NO resta egresos (los egresos quedan solo como registro).
-  const neto=fondo+totalEfectivo-(prop||0)+movRep.ingresos;
+  // v112 (#5 corregido): ni ingresos ni egresos modifican el efectivo BASE; ambos solo se registran.
+  const efBase=fondo+totalEfectivo-(prop||0);
+  const efCon=efBase+movRep.ingresos-movRep.egresos;
   r+='      '+'─'.repeat(32)+'\n';
-  r+='  Efectivo esperado al cerrar      $'+neto+'  (calculado)\n';
+  r+='  Efectivo SIN ingresos/egresos    $'+efBase+'  (fondo + ventas ef. − propinas)\n';
+  r+='  Efectivo CON ingresos/egresos    $'+efCon+'  (= SIN + ingresos − egresos)\n';
   r+='  (Las ventas con tarjeta NO entran a la caja: se concilian por el lote de la terminal.)\n';
-  r+='  (Los egresos —pan, galletas, insumos— se registran pero NO se restan del efectivo.)\n';
+  r+='  (Ingresos y egresos solo se registran; el efectivo base no se modifica con ellos.)\n';
   r+='─'.repeat(44)+'\n\n';
   if(cb){r+='COLD BREW\n  Café: '+cb.gramos+'g  |  Molienda #'+cb.molienda+'  |  Preparado: '+cb.horaEntrada+'\n  Infusión: '+cb.horasInfusion+' hrs  →  Filtrar: '+cb.filtradoStr+'\n\n';}
   const proDone=hoy.filter(ta=>thPro[TAREAS.indexOf(ta)]);
@@ -9970,13 +9973,16 @@ function ejecutarEnvioReporte(h){
   const loteP = parseFloat(document.getElementById('lote-propinas').value)||0;
   const prop = parseFloat(document.getElementById('propinas-monto').value)||0;
   const mov2 = leerMovimientos();
-  const pagos = mov2.egresos; // egresos para el Sheet
+  const pagos = mov2.egresos; // egresos para el Sheet (solo registro)
   const fondo2 = fondoAnteriorVal();
-  const neto = fondo2 + totalEfectivo - prop + mov2.neto;
-  const cierreVal = parseFloat(document.getElementById('cierre-monto').value)||0;
-  // Guardar el efectivo físico de cierre como fondo del día siguiente
+  // v112 (#5 corregido): efectivo BASE (sin i/e) y efectivo CON i/e. Ni ingresos ni egresos tocan el base.
+  const efBase = fondo2 + totalEfectivo - prop;
+  const efCon  = efBase + mov2.ingresos - mov2.egresos;
+  const neto = efCon; // "neto_caja" reportado = efectivo real que queda (con i/e)
+  // Guardar como FONDO DEL DÍA SIGUIENTE el efectivo CON i/e (lo que realmente queda en caja).
+  // DUDA Jorge: confirmar que el fondo de mañana debe ser la cifra CON ingresos/egresos.
   try{
-    localStorage.setItem('inemuri_fondo_caja', JSON.stringify({fecha:new Date().toLocaleDateString('es-MX'), monto:cierreVal}));
+    localStorage.setItem('inemuri_fondo_caja', JSON.stringify({fecha:new Date().toLocaleDateString('es-MX'), monto:efCon}));
     localStorage.removeItem('inemuri_fondo_hoy');
   }catch(e){}
   const hoy = tareasDeHoy();
@@ -9992,7 +9998,7 @@ function ejecutarEnvioReporte(h){
       total_ventas_tarjeta: loteV,
       total_propinas_terminal: loteP,
       neto_caja: neto,
-      diferencia_caja: cierreVal - neto,
+      diferencia_caja: 0,
       inventario_cerrado: inventarioCerrado ? 'Sí' : 'No',
       tareas_completadas: tareasDone,
       tareas_total: hoy.length,
