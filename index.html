@@ -1556,6 +1556,11 @@ html,body { background:#008080 !important; height:100%; overflow:hidden; }
 .section { display:none; height:100%; overflow-y:auto; padding-bottom:16px; }
 .section.active { display:block; }
 #sec-ventas.section.active { padding-bottom:0 !important; }
+/* v112: "Ventas del día" (#sec-historial) ocupa TODA la ventana (ancho y alto completos) */
+#sec-historial.section.active { display:flex !important; flex-direction:column !important; height:100% !important; padding-bottom:0 !important; overflow:hidden !important; }
+#sec-historial > .card { flex:1 1 auto !important; min-height:0 !important; height:100% !important; display:flex !important; flex-direction:column !important; overflow:hidden !important; width:100% !important; }
+#sec-historial .ventas-list { flex:1 1 auto !important; min-height:0 !important; max-height:none !important; overflow-y:auto !important; }
+#sec-historial #ventas-totales-bar { flex:0 0 auto !important; }
 .ventas-layout { display:grid !important; grid-template-columns:1fr 300px !important; gap:8px !important; height:100% !important; }
 
 /* Cards */
@@ -2043,7 +2048,7 @@ input[type="time"], input[type="date"], textarea, select {
     <!-- Barra de título -->
     <div id="win-title-bar">
       <div id="win-title-icon">☕</div>
-      <div id="win-title-text">Inemuri Café v5.4 — POS</div>
+      <div id="win-title-text">Inemuri Café v5.5 — POS</div>
       <div id="win-title-btns">
         <div class="win-ctrl-btn">_</div>
         <div class="win-ctrl-btn">□</div>
@@ -5889,7 +5894,10 @@ void main() {
       <div>
         <div id="pestanas-bar"></div>
         <div class="card">
-          <div class="card-title">Nueva venta</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+            <div class="card-title" style="margin:0;">Nueva venta</div>
+            <button id="btn-entrada-manual" type="button" onclick="abrirEntradaManual()" style="flex:0 0 auto;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;background:#c0c0c0;border:none;box-shadow:inset -1px -1px 0 #404040,inset 1px 1px 0 #fff;">➕ Entrada Manual</button>
+          </div>
           <div class="menu-cats" id="cats"></div>
           <div class="products-grid" id="productos"></div>
         </div>
@@ -6147,8 +6155,8 @@ void main() {
           <div id="fondo-motivo-wrap" style="display:none;margin-top:5px;">
             <input class="field-input" type="text" id="fondo-motivo" placeholder="Motivo del cambio (obligatorio)…" oninput="onMotivoFondo()" style="width:100%;box-sizing:border-box;text-align:left;"/>
           </div>
-          <div class="field-row" style="border:none;"><span class="field-label">Efectivo esperado al cerrar</span><input class="field-input" type="number" id="cierre-monto" placeholder="$0" readonly tabindex="-1" title="Calculado automáticamente. Ajusta con Ingresos/Egresos." style="background:#e0e0e0;color:#000;cursor:default;"/></div>
-          <div style="font-size:10px;color:#bbb;margin:0;padding:0 !important;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Calculado: fondo + efectivo − propinas + (ingresos−egresos). Ajusta con movimientos.</div>
+          <div class="field-row" style="border:none;"><span class="field-label">Efectivo esperado al cerrar</span><input class="field-input" type="text" id="cierre-monto" placeholder="$0" readonly tabindex="-1" title="Calculado automáticamente (dos cifras: sin y con ingresos/egresos)." style="background:#e0e0e0;color:#000;cursor:default;font-size:11px;text-align:right;"/></div>
+          <div style="font-size:10px;color:#bbb;margin:0;padding:0 !important;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">SIN i/e = fondo + efectivo − propinas. CON i/e = SIN + ingresos − egresos.</div>
         </div>
         <div class="card">
           <div class="card-title">Propinas de tarjetas retiradas en efectivo</div>
@@ -6178,9 +6186,9 @@ void main() {
           <div class="field-row"><span class="field-label">Fondo del día anterior</span><span class="field-val" id="res-fondo">$0</span></div>
           <div class="field-row"><span class="field-label">Ventas en efectivo</span><span class="field-val" id="res-ventas">$0</span></div>
           <div class="field-row"><span class="field-label">Propinas retiradas</span><span class="field-val" id="res-propinas">$0</span></div>
-          <div class="field-row"><span class="field-label">Ingresos/Egresos menores</span><span class="field-val" id="res-pagos">$0</span></div>
-          <div class="field-row"><span class="field-label">Neto esperado</span><span class="field-val" id="res-neto">$0</span></div>
-          <div class="field-row"><span class="field-label">Efectivo al cerrar</span><span class="field-val" id="res-cierre">—</span></div>
+          <div class="field-row"><span class="field-label">Ingresos/Egresos (registro)</span><span class="field-val" id="res-pagos">$0</span></div>
+          <div class="field-row"><span class="field-label">Efectivo SIN ingresos/egresos</span><span class="field-val" id="res-neto">$0</span></div>
+          <div class="field-row"><span class="field-label">Efectivo CON ingresos/egresos</span><span class="field-val" id="res-cierre">—</span></div>
           <div class="field-row" style="border:none;"><span class="field-label" style="font-weight:700;">Diferencia</span><span class="field-val" id="res-diff" style="font-weight:700;">—</span></div>
         </div>
         <div class="card">
@@ -6397,7 +6405,7 @@ async function cargarBaristas(){
   }catch(e){console.warn('Sheet error:',e.message);}
 }
 
-const MENU={"Espresso":[{n:"Espresso",p:50},{n:"Espresso Doble",p:65},{n:"Americano",p:60},{n:"Long Black",p:60},{n:"Cortado",p:60},{n:"Flat White",p:70},{n:"Capucchino",p:80},{n:"Latte",p:85},{n:"Moka",p:105},{n:"Dirty Chai",p:110},{n:"Golden Milk",p:75},{n:"Babycchino",p:20},{n:"Extra Shot",p:15}],"Sin café":[{n:"Matcha Ceremonial",p:70},{n:"Matcha Latte",p:95},{n:"Chai Latte",p:90},{n:"Hojicha Latte",p:95},{n:"Cacao Latte",p:85},{n:"Taro+Ube Latte",p:125},{n:"Kumo Cocoa",p:65}],"Frías":[{n:"Cold Brew",p:85},{n:"Honey Americano",p:70},{n:"Latte Frío",p:90},{n:"Orange Espresso",p:95},{n:"Espresso Tónic",p:90},{n:"Chai Frío",p:100},{n:"Matcha Frío",p:105},{n:"Dirty Chai Frío",p:115},{n:"Taro+Ube Frío",p:125},{n:"Coconut Matcha",p:110}],"Brew Bar":[{n:"Brew Lavado",p:80},{n:"Brew Hidronatural",p:105},{n:"Brew Honey Rosa",p:105}],"Tisanas":[{n:"Mariposa Azul",p:85},{n:"Lavanda",p:65},{n:"Manzanilla-Menta",p:65},{n:"Oriental",p:65},{n:"Jengibre-Limón",p:65},{n:"Sistema Inmune",p:65},{n:"Relax",p:65},{n:"Cereza",p:75},{n:"Ponche",p:75},{n:"Arándanos",p:75},{n:"Manzana-Canela",p:75},{n:"Moras",p:75},{n:"Fresa-Kiwi",p:75}],"Leche vegetal":[{n:"Almendra Silk",p:15},{n:"GÜD Soya",p:15},{n:"LALA Pro+",p:15},{n:"Oat-ly Avena",p:20}],"Pan":[{n:"Trenza",p:60},{n:"Chocolatín",p:50},{n:"Croissant Guayaba",p:65},{n:"Kouing Manzana",p:65},{n:"Kouing Higo",p:65},{n:"Rollo Avellana",p:70},{n:"Panqué Frutos Rojos",p:55},{n:"Panqué Blueberry",p:55}],"Galletas":[{n:"NY Clásica",p:60},{n:"NY Lotus",p:60},{n:"NY Espresso Caramel",p:60},{n:"NY Choco Abuelita",p:60},{n:"NY Reese's",p:60},{n:"NY Choco-Fit",p:95},{n:"NY Flaca",p:35},{n:"Biscuit Mix",p:120},{n:"Biscuit Choco-Fit",p:210}],"Sandwiches":[{n:"Jamón Serrano",p:160},{n:"Huevo",p:135},{n:"Pechuga Pavo",p:165},{n:"Roast Beef",p:175}],"Otros":[{n:"Agua Mineral",p:25},{n:"Café en Grano",p:250}]};
+const MENU={"Espresso":[{n:"Espresso",p:50},{n:"Espresso Doble",p:65},{n:"Americano",p:60},{n:"Long Black",p:60},{n:"Cortado",p:60},{n:"Flat White",p:70},{n:"Capucchino",p:80},{n:"Latte",p:85},{n:"Afogatto",p:85},{n:"Moka",p:105},{n:"Dirty Chai",p:110},{n:"Golden Milk",p:75},{n:"Babycchino",p:20},{n:"Extra Shot",p:15}],"Sin café":[{n:"Matcha Ceremonial",p:70},{n:"Matcha Latte",p:95},{n:"Chai Latte",p:90},{n:"Hojicha Latte",p:95},{n:"Cacao Latte",p:85},{n:"Taro+Ube Latte",p:125},{n:"Kumo Cocoa",p:65}],"Frías":[{n:"Cold Brew",p:85},{n:"Honey Americano",p:70},{n:"Latte Frío",p:90},{n:"Orange Espresso",p:95},{n:"Espresso Tónic",p:90},{n:"Chai Frío",p:100},{n:"Matcha Frío",p:105},{n:"Dirty Chai Frío",p:115},{n:"Taro+Ube Frío",p:125},{n:"Coconut Matcha",p:110}],"Brew Bar":[{n:"Brew Lavado",p:80},{n:"Brew Hidronatural",p:105},{n:"Brew Honey Rosa",p:105}],"Tisanas":[{n:"Mariposa Azul",p:85},{n:"Lavanda",p:65},{n:"Manzanilla-Menta",p:65},{n:"Oriental",p:65},{n:"Jengibre-Limón",p:65},{n:"Sistema Inmune",p:65},{n:"Relax",p:65},{n:"Cereza",p:75},{n:"Ponche",p:75},{n:"Arándanos",p:75},{n:"Manzana-Canela",p:75},{n:"Moras",p:75},{n:"Fresa-Kiwi",p:75}],"Leche vegetal":[{n:"Almendra Silk",p:15},{n:"GÜD Soya",p:15},{n:"LALA Pro+",p:15},{n:"Oat-ly Avena",p:20}],"Pan":[{n:"Trenza",p:60},{n:"Chocolatín",p:50},{n:"Croissant Guayaba",p:65},{n:"Kouing Manzana",p:65},{n:"Kouing Higo",p:65},{n:"Rollo Avellana",p:70},{n:"Panqué Frutos Rojos",p:55},{n:"Panqué Blueberry",p:55}],"Galletas":[{n:"NY Clásica",p:60},{n:"NY Lotus",p:60},{n:"NY Espresso Caramel",p:60},{n:"NY Choco Abuelita",p:60},{n:"NY Reese's",p:60},{n:"NY Choco-Fit",p:95},{n:"NY Flaca",p:35},{n:"Biscuit Mix",p:120},{n:"Biscuit Choco-Fit",p:210}],"Sandwiches":[{n:"Jamón Serrano",p:160},{n:"Huevo",p:135},{n:"Pechuga Pavo",p:165},{n:"Roast Beef",p:175}],"Otros":[{n:"Agua Mineral",p:25},{n:"Café en Grano",p:250}]};
 
 // Mapa nombre → categoría para colorear la orden
 const ITEM_CAT={};
@@ -6674,6 +6682,43 @@ function mostrarModalApertura(nombre){
   });
 }
 
+// ── v112: ENTREGA POST CHECK-IN (centralizado para los 3 caminos de check-in) ──
+// Tras el check-in de un barista entrega: (1) la pregunta "¿Cómo encontraste la barra?"
+// si aún no se hizo hoy (gobernada por deberíaMostrarApertura(), día-scoped y persistente),
+// y (2) su aviso pendiente ~2 s DESPUÉS del check-in. El aviso es por barista y solo se
+// muestra a ese barista; si no hace check-in queda pendiente (vive en el Sheet + en
+// avisosPendientes) hasta que lo haga, aunque sea otro día. Al dar "Enterado" se marca como
+// leído (inemuri_avisos_leidos) para no repetirlo.
+function entregarPostCheckin(nombre, callback){
+  // (2) Aviso pendiente para ESTE barista → ~2 s después del check-in.
+  const av=avisosPendientes[nombre];
+  if(av && av.texto && !avisoEstaLeido(nombre,av)){
+    const mostrar=function(){
+      // Si la pregunta de barra sigue abierta, esperar a que se cierre para no encimar modales.
+      if(document.getElementById('apertura-modal-overlay')){ setTimeout(mostrar,400); return; }
+      try{ mostrarModalAviso(nombre); }catch(e){}
+    };
+    setTimeout(mostrar, 2000);
+  }
+  // (1) Pregunta de estado de la barra (1 vez al día).
+  if(deberíaMostrarApertura()){
+    window._aperturaGuardada=false;
+    mostrarModalApertura(nombre);
+    if(callback){
+      const wc=setInterval(function(){
+        if(!document.getElementById('apertura-modal-overlay')){
+          clearInterval(wc);
+          if(window._aperturaGuardada) callback();
+        }
+      },200);
+    }
+  } else {
+    const destino=window._seccionOrigen||'ventas';
+    switchTab(destino);
+    if(callback) callback();
+  }
+}
+
 // ── MODAL CHECK-IN DESDE SECCIÓN BLOQUEADA ──
 function mostrarModalCheckin(callback){
   window._seccionOrigen=seccionActual();
@@ -6703,44 +6748,14 @@ function mostrarModalCheckin(callback){
     if(btn.dataset.salio==='true')return;
     btn.addEventListener('click',()=>{
       const n=btn.dataset.n;
-      const yaEnTurno=btn.dataset.ya==='true';
+      nuevoDiaSiCorresponde(); // v112: cambio de día limpio antes del check-in
+      const yaEnTurno=turnos[n]&&!turnos[n].salida;
       if(!yaEnTurno)turnos[n]={entrada:now(),salidaComer:'',regresoComer:'',salida:''};
       baristaActivo=n;marcandoComo=n;
       renderBaristaSelector();renderMarcandoBar();renderTurnoCards();updateCierreBanner();
       overlay.remove();
-      if(!primerCheckinHecho){ primerCheckinHecho=true; }
-      // Preguntar estado de barra si nadie lo ha hecho hoy (independiente del turno)
-      if(deberíaMostrarApertura()){
-        window._aperturaGuardada=false;
-        if(avisosPendientes[n]&&avisosPendientes[n].texto){
-          mostrarModalAviso(n);
-          const wi=setInterval(()=>{
-            if(!document.getElementById('aviso-modal-overlay')){
-              clearInterval(wi); mostrarModalApertura(n);
-            }
-          },300);
-        } else {
-          mostrarModalApertura(n);
-        }
-        // Esperar a que el modal APAREZCA primero, luego ejecutar callback al cerrarse
-        const waitApertura = setInterval(()=>{
-          if(document.getElementById('apertura-modal-overlay')){
-            clearInterval(waitApertura);
-            // Ahora sí esperar a que se cierre
-            const waitClose = setInterval(()=>{
-              if(!document.getElementById('apertura-modal-overlay')){
-                clearInterval(waitClose);
-                // Solo continuar la venta si la apertura SÍ fue guardada
-                if(window._aperturaGuardada && callback) callback();
-              }
-            }, 200);
-          }
-        }, 100);
-      } else {
-        const destino=window._seccionOrigen||'ventas';
-        switchTab(destino);
-        if(callback)callback();
-      }
+      if(!primerCheckinHecho) primerCheckinHecho=true;
+      entregarPostCheckin(n, callback); // v112: pregunta de barra + aviso (2s) centralizados
     });
   });
   document.getElementById('checkin-cancel-btn').addEventListener('click',()=>overlay.remove());
@@ -6959,6 +6974,8 @@ function guardarSesionDebounced(seccion, datos) {
 
 async function cargarSesionDesdeServidor() {
   if (!APPS_SCRIPT_URL) return;
+  // v112: si hubo cambio de día, la sesión del servidor es de ayer → NO restaurar; resetearla.
+  if (_sesionDiaObsoleta) { try{ resetearSesionServidor(); }catch(e){} return; }
   const r = await api('leer_sesion', {});
   if (!r || !r.sesion) return;
   const s = r.sesion;
@@ -7357,8 +7374,8 @@ function mostrarModalAviso(nombre){
   document.body.appendChild(overlay);
   document.getElementById('aviso-modal-ok').addEventListener('click',()=>{
     overlay.remove();
-    // Marcar como leído — eliminar de pendientes
-    delete avisosPendientes[nombre];
+    // v112: marcar como ENTREGADO/leído de forma persistente (inemuri_avisos_leidos) para no repetirlo.
+    try{ marcarAvisoLeido(nombre); }catch(e){ delete avisosPendientes[nombre]; }
   });
 }
 
@@ -8244,6 +8261,67 @@ function limpiarBackupsViejos(){
     borrar.forEach(function(k){localStorage.removeItem(k);});
   }catch(e){}
 }
+// ── v112: CAMBIO DE DÍA LIMPIO ──────────────────────────────────────────────
+// Si el estado guardado/en memoria pertenece a un día anterior, se ARCHIVA y se
+// LIMPIA para que el día nuevo empiece en cero (sin perder lo de ayer). Se invoca
+// al cargar la app y en cada check-in. El "día de operación" se guarda en
+// localStorage['inemuri_dia_operacion'] (formato es-MX, igual que fechaCorta()/los backups).
+let _sesionDiaObsoleta=false; // la sesión del servidor también es de ayer → no restaurar
+function diaOperacionHoy(){ return new Date().toLocaleDateString('es-MX'); }
+function archivarDiaAnterior(dia){
+  try{
+    const arch={fecha:dia, archivadoEl:new Date().toISOString(),
+      ventas:ventas, ventaCount:ventaCount, turnos:turnos,
+      // v112: también se archivan las TAREAS completadas de ayer (proactivos + personales + espontáneas)
+      tareasHorasProactivos:tareasHorasProactivos, tareasHorasPorBarista:tareasHorasPorBarista, tareasEspontaneas:tareasEspontaneas,
+      cierreForm:(typeof leerCierreFormDOM==='function'?leerCierreFormDOM():null)};
+    const hayDatos=(arch.ventas&&arch.ventas.length)||(arch.turnos&&Object.keys(arch.turnos).length)
+      ||(arch.tareasHorasProactivos&&Object.keys(arch.tareasHorasProactivos).length)
+      ||(arch.tareasHorasPorBarista&&Object.keys(arch.tareasHorasPorBarista).length);
+    if(hayDatos) localStorage.setItem('inemuri_archivo_'+dia, JSON.stringify(arch));
+  }catch(e){}
+}
+function limpiarEstadoDelDia(){
+  ventas=[]; ventaCount=0;
+  turnos={}; turnosHistorial={};
+  // v112: las TAREAS completadas también se reinician → el día nuevo empieza SIN marcar.
+  // (historialTareas NO se toca: es el registro "última vez hecha" del Sheet que gobierna la frecuencia.)
+  tareasHorasProactivos={}; tareasHorasPorBarista={}; tareasEspontaneas=[];
+  reporteEnviado=false; inventarioCerrado=false; primerCheckinHecho=false;
+  // El fondo del día (inemuri_fondo_caja) NO se toca: el cierre de ayer es el fondo de hoy.
+  try{ ['lote-ventas','lote-propinas','propinas-monto','nota-texto'].forEach(function(id){const e=document.getElementById(id);if(e)e.value='';}); }catch(e){}
+  try{ const pl=document.getElementById('pagos-list'); if(pl){ pl.innerHTML=''; if(typeof addPago==='function') addPago(); } }catch(e){}
+  try{ if(typeof renderVentas==='function') renderVentas(); }catch(e){}
+  try{ if(typeof renderBaristaSelector==='function') renderBaristaSelector(); if(typeof renderTurnoCards==='function') renderTurnoCards(); }catch(e){}
+  try{ if(typeof renderTareas==='function') renderTareas(); }catch(e){}
+  try{ if(typeof renderEspLista==='function') renderEspLista(); }catch(e){}
+  try{ if(typeof updateProgress==='function') updateProgress(); }catch(e){}
+  try{ if(typeof calcularCaja==='function') calcularCaja(); }catch(e){}
+}
+// Sobrescribe la "sesión actual" del backend con una vacía (para que la de ayer no reaparezca).
+function resetearSesionServidor(){
+  if(!APPS_SCRIPT_URL) return;
+  try{ api('guardar_sesion',{seccion:'ventas',barista:'',datos:{lista:[]}}); }catch(e){}
+  try{ api('guardar_sesion',{seccion:'turnos',barista:'',datos:{}}); }catch(e){}
+  try{ api('guardar_sesion',{seccion:'proactivos',barista:'',datos:{}}); }catch(e){} // v112: tareas en cero
+}
+// Devuelve true si detectó (y procesó) un cambio de día.
+function nuevoDiaSiCorresponde(){
+  let diaPrev=null; try{ diaPrev=localStorage.getItem('inemuri_dia_operacion'); }catch(e){}
+  const hoy=diaOperacionHoy();
+  if(diaPrev && diaPrev!==hoy){
+    archivarDiaAnterior(diaPrev);
+    limpiarEstadoDelDia();
+    _sesionDiaObsoleta=true;
+    try{ resetearSesionServidor(); }catch(e){}
+    try{ localStorage.setItem('inemuri_dia_operacion', hoy); }catch(e){}
+    try{ limpiarBackupsViejos(); }catch(e){}
+    try{ mostrarToast('Día nuevo: ventas reiniciadas en cero',2500); }catch(e){}
+    return true;
+  }
+  try{ localStorage.setItem('inemuri_dia_operacion', hoy); }catch(e){}
+  return false;
+}
 // Captura los campos del formulario de Caja y Cierre (para que un reinicio no los pierda)
 function leerCierreFormDOM(){
   const g=id=>{const e=document.getElementById(id);return e?e.value:'';};
@@ -8398,8 +8476,13 @@ function ocultarNumpadFlotante(){
 // ── v111: MENÚ DE INICIO Win98 + ventana flotante del Manual ──
 // Accesos directos del menú. Para agregar más: { icono:'🔧', label:'…', accion:funcion }  (o usar {sep:true} para separador)
 const START_MENU_ITEMS=[
-  { icono:'📖', label:'Manual de Usuario', accion:abrirManual }
+  { icono:'📖', label:'Manual de Usuario', accion:abrirManual },
+  { sep:true },
+  { icono:'ℹ️', label:'Acerca de / Versión', accion:abrirAcercaDe }
 ];
+// Versiones (editar al subir a producción). prod = lo que corre en pos.inemuri.cafe; dev = esta build (preview/test).
+const APP_VERSIONES={ prod:'v5.4', dev:'v5.5', build:'111',
+  novedades:['Menú Inicio + Manual de Usuario','Entrada Manual de productos','Acerca de / Versión','Producto Afogatto ($85)'] };
 function renderStartMenu(){
   const cont=document.getElementById('wsm-items'); if(!cont)return;
   cont.innerHTML=START_MENU_ITEMS.map(function(it,i){
@@ -8475,8 +8558,79 @@ function abrirManual(){
 }
 function cerrarManual(){ const w=document.getElementById('manual-window'); if(w)w.classList.remove('open'); }
 
+// ── ENTRADA MANUAL ── producto fuera del menú: [Producto][Precio] → se agrega a la orden
+const W98_BTN='padding:7px;font-size:12px;cursor:pointer;background:#c0c0c0;border:none;box-shadow:inset -1px -1px 0 #404040,inset 1px 1px 0 #fff;';
+const W98_TITLEBAR='height:24px;background:linear-gradient(to right,#1060c0 0%,#0030a0 50%,#001880 100%);display:flex;align-items:center;justify-content:space-between;padding:0 4px 0 8px;flex:0 0 auto;';
+function construirEntradaManual(){
+  const ov=document.createElement('div'); ov.id='entrada-manual-overlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:9700;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);';
+  ov.innerHTML='<div style="width:340px;max-width:92vw;background:#c0c0c0;">'
+    +'<div style="'+W98_TITLEBAR+'"><span style="color:#fff;font-size:12px;font-weight:bold;font-family:var(--w-font);">➕ Entrada Manual</span>'
+    +'<button class="modal-x-btn" type="button" onclick="cerrarEntradaManual()" title="Cerrar">✕</button></div>'
+    +'<div style="padding:14px;font-family:var(--w-font);">'
+    +'<label style="display:block;font-size:11px;font-weight:700;color:var(--ink-mid);margin-bottom:3px;">Producto</label>'
+    +'<input id="em-prod" type="text" autocomplete="off" placeholder="Nombre del producto" style="width:100%;box-sizing:border-box;margin-bottom:10px;">'
+    +'<label style="display:block;font-size:11px;font-weight:700;color:var(--ink-mid);margin-bottom:3px;">Precio</label>'
+    +'<input id="em-precio" type="number" inputmode="decimal" min="0" placeholder="$0" style="width:100%;box-sizing:border-box;margin-bottom:14px;">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+    +'<button type="button" onclick="cerrarEntradaManual()" style="'+W98_BTN+'">Cancelar</button>'
+    +'<button type="button" onclick="agregarEntradaManual()" style="'+W98_BTN+'font-weight:700;">Agregar</button>'
+    +'</div></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov)cerrarEntradaManual(); });
+  ov.querySelector('#em-precio').addEventListener('keydown',function(e){ if(e.key==='Enter')agregarEntradaManual(); });
+  return ov;
+}
+function abrirEntradaManual(){
+  if(requiereCheckin()){mostrarModalCheckin(abrirEntradaManual);return;}
+  let ov=document.getElementById('entrada-manual-overlay');
+  if(!ov)ov=construirEntradaManual();
+  ov.querySelector('#em-prod').value='';
+  ov.querySelector('#em-precio').value='';
+  ov.style.display='flex';
+  setTimeout(function(){ const i=ov.querySelector('#em-prod'); if(i)i.focus(); },60);
+}
+function cerrarEntradaManual(){ const ov=document.getElementById('entrada-manual-overlay'); if(ov)ov.style.display='none'; }
+function agregarEntradaManual(){
+  const prod=(document.getElementById('em-prod').value||'').trim();
+  const precio=parseFloat(document.getElementById('em-precio').value);
+  if(!prod){ mostrarToast('Escribe el nombre del producto',2200); return; }
+  if(isNaN(precio)||precio<=0){ mostrarToast('Escribe un precio válido',2200); return; }
+  addItem(prod, precio);
+  cerrarEntradaManual();
+}
+
+// ── ACERCA DE / VERSIÓN ──
+function construirAcercaDe(){
+  const v=APP_VERSIONES;
+  const ov=document.createElement('div'); ov.id='acerca-overlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:9700;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);';
+  const nov=(v.novedades||[]).map(function(t){ return '<div style="padding:1px 0;">• '+t+'</div>'; }).join('');
+  ov.innerHTML='<div style="width:380px;max-width:92vw;background:#c0c0c0;">'
+    +'<div style="'+W98_TITLEBAR+'"><span style="color:#fff;font-size:12px;font-weight:bold;font-family:var(--w-font);">ℹ️ Acerca de — Inemuri POS</span>'
+    +'<button class="modal-x-btn" type="button" onclick="cerrarAcercaDe()" title="Cerrar">✕</button></div>'
+    +'<div style="padding:16px;font-family:var(--w-font);">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="font-size:34px;">☕</span>'
+    +'<div><div style="font-size:15px;font-weight:800;">Inemuri Café — POS</div><div style="font-size:11px;color:var(--ink-mid);">PWA de barra · iPad Pro 11"</div></div></div>'
+    +'<div style="border:1px solid #808080;background:#fff;padding:8px 10px;font-size:12px;">'
+    +'<div style="display:flex;justify-content:space-between;padding:3px 0;"><span>En producción</span><b>'+v.prod+'</b></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px dotted #ccc;"><span>En desarrollo</span><b style="color:#0030a0;">'+v.dev+'</b></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px dotted #ccc;"><span>Esta build</span><b>'+v.build+' ('+v.dev+')</b></div></div>'
+    +'<div style="margin-top:10px;font-size:11px;font-weight:700;color:var(--ink-mid);">Novedades en desarrollo</div>'
+    +'<div style="font-size:11px;color:var(--ink);margin-top:2px;line-height:1.4;">'+nov+'</div>'
+    +'<div style="margin-top:10px;font-size:9.5px;color:var(--ink-mid);line-height:1.5;">Producción: pos.inemuri.cafe · Desarrollo: pos.inemuri.cafe/preview/ y test.inemuri.cafe</div>'
+    +'<div style="display:flex;justify-content:flex-end;margin-top:14px;"><button type="button" onclick="cerrarAcercaDe()" style="'+W98_BTN+'min-width:90px;">Aceptar</button></div>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov)cerrarAcercaDe(); });
+  return ov;
+}
+function abrirAcercaDe(){ let ov=document.getElementById('acerca-overlay'); if(!ov)ov=construirAcercaDe(); ov.style.display='flex'; }
+function cerrarAcercaDe(){ const ov=document.getElementById('acerca-overlay'); if(ov)ov.style.display='none'; }
+
 // ── INIT ──
 function init(){
+  nuevoDiaSiCorresponde(); // v112: cambio de día limpio al cargar (archiva ayer, marca sesión servidor obsoleta)
   if(restaurarBackup()){
     setTimeout(function(){
       renderVentas();renderBaristaSelector();renderTurnoCards();renderTabs();
@@ -8674,6 +8828,7 @@ function renderBaristaSelector(){
     btn.dataset.barista=b.nombre;
     btn.addEventListener('click',()=>{
       window._seccionOrigen=seccionActual();
+      nuevoDiaSiCorresponde(); // v112: cambio de día limpio antes del check-in
       const t=turnos[b.nombre];
       if(!t || t.salida){
         mostrarConfirmCheckin(b,()=>{
@@ -8683,44 +8838,14 @@ function renderBaristaSelector(){
           turnos[b.nombre]={entrada:now(),salidaComer:'',regresoComer:'',salida:'',turno:turnoCounter[b.nombre]};
           baristaActivo=b.nombre;marcandoComo=b.nombre;
           renderBaristaSelector();renderMarcandoBar();renderTurnoCards();updateCierreBanner();
-          if(!primerCheckinHecho){
-            primerCheckinHecho=true;
-            // Mostrar aviso primero si existe, luego apertura
-            if(avisosPendientes[b.nombre]&&avisosPendientes[b.nombre].texto){
-              mostrarModalAviso(b.nombre);
-              // La apertura se mostrará cuando cierren el aviso — cadena manual
-              const waitForAviso=setInterval(()=>{
-                if(!document.getElementById('aviso-modal-overlay')){
-                  clearInterval(waitForAviso);mostrarModalApertura(b.nombre);
-                }
-              },300);
-            } else {
-              if(deberíaMostrarApertura()) mostrarModalApertura(b.nombre); else switchTab(window._seccionOrigen||'mis-tareas');
-            }
-          } else {
-            mostrarModalAviso(b.nombre);
-            switchTab(window._seccionOrigen||'ventas');
-          }
+          if(!primerCheckinHecho) primerCheckinHecho=true;
+          entregarPostCheckin(b.nombre, null); // v112: pregunta de barra + aviso (2s)
         });
       } else {
         baristaActivo=b.nombre;marcandoComo=b.nombre;
         renderBaristaSelector();renderMarcandoBar();updateCierreBanner();
-        if(!primerCheckinHecho){
-          primerCheckinHecho=true;
-          if(avisosPendientes[b.nombre]&&avisosPendientes[b.nombre].texto){
-            mostrarModalAviso(b.nombre);
-            const waitAv=setInterval(()=>{
-              if(!document.getElementById('aviso-modal-overlay')){
-                clearInterval(waitAv);mostrarModalApertura(b.nombre);
-              }
-            },300);
-          } else {
-            if(deberíaMostrarApertura()) mostrarModalApertura(b.nombre); else switchTab(window._seccionOrigen||'mis-tareas');
-          }
-        } else {
-          mostrarModalAviso(b.nombre);
-          switchTab(window._seccionOrigen||'ventas');
-        }
+        if(!primerCheckinHecho) primerCheckinHecho=true;
+        entregarPostCheckin(b.nombre, null); // v112: pregunta de barra + aviso (2s)
       }
     });
     el.appendChild(btn);
@@ -8774,16 +8899,12 @@ function renderTurnoCards(targetEl, soloNombre){
         window._seccionOrigen=seccionActual();
         function aplicar(){
         if(act==='checkin'){
+          nuevoDiaSiCorresponde(); // v112: cambio de día limpio antes del check-in
           turnoCounter[n]=(turnoCounter[n]||0)+1;
           turnos[n]={entrada:now(),salidaComer:'',regresoComer:'',salida:'',turno:turnoCounter[n]};
           baristaActivo=n;marcandoComo=n;renderBaristaSelector();
-          if(!primerCheckinHecho){
-            primerCheckinHecho=true;
-            if(avisosPendientes[n]&&avisosPendientes[n].texto){
-              mostrarModalAviso(n);
-              const wi=setInterval(()=>{if(!document.getElementById('aviso-modal-overlay')){clearInterval(wi);mostrarModalApertura(n);}},300);
-            } else { if(deberíaMostrarApertura()) mostrarModalApertura(n); else switchTab(window._seccionOrigen||'mis-tareas'); }
-          } else { mostrarModalAviso(n);switchTab(window._seccionOrigen||'ventas'); }
+          if(!primerCheckinHecho) primerCheckinHecho=true;
+          entregarPostCheckin(n, null); // v112: pregunta de barra + aviso (2s)
         }
         else if(act==='s-comer')turnos[n].salidaComer=now();
         else if(act==='r-comer')turnos[n].regresoComer=now();
@@ -9202,6 +9323,7 @@ function cobrar(){
       orig.corregidaPor=baristaActivo||'-';
       ventas.push({
         folio: orig.folio+'C',
+        dia: fechaCorta(),
         resumen: items.map(([n,d])=>d.qty>1?d.qty+'× '+n:n).join(', '),
         total, barista:baristaActivo, color:colorOf(baristaActivo),
         metodo: total===0?'promo':metodoPago, // v111: 'promo' SOLO si la venta queda en $0; si no, el método real
@@ -9226,7 +9348,7 @@ function cobrar(){
     return;
   }
   ventaCount++;
-  ventas.push({folio:folio(ventaCount),resumen:items.map(([n,d])=>d.qty>1?d.qty+'× '+n:n).join(', '),total,barista:baristaActivo,color:colorOf(baristaActivo),metodo:total===0?'promo':metodoPago,detalle:JSON.parse(JSON.stringify(orden)),pagoCliente,cliente:clientePestanaActiva(),...promoData});
+  ventas.push({folio:folio(ventaCount),dia:fechaCorta(),resumen:items.map(([n,d])=>d.qty>1?d.qty+'× '+n:n).join(', '),total,barista:baristaActivo,color:colorOf(baristaActivo),metodo:total===0?'promo':metodoPago,detalle:JSON.parse(JSON.stringify(orden)),pagoCliente,cliente:clientePestanaActiva(),...promoData});
   promoActiva=null;actualizarDisplayPromo();
   orden={};document.getElementById('pago-cliente').value='';document.getElementById('cambio-display').textContent='—';document.getElementById('cambio-display').className='cambio-result-num';
   resetMetodoPago(); // v111: la próxima venta vuelve a exigir elegir método
@@ -9417,16 +9539,20 @@ function calcularCaja(){
   const fondo=fondoAnteriorVal();
   // v111 (cuadre): a la caja física SOLO entra el efectivo; las ventas con tarjeta se concilian por el lote de terminal.
   const efectivo=ventas.filter(v=>!v.cancelada&&!v.corregida&&v.metodo==='efectivo').reduce((s,v)=>s+v.total,0);
-  // Efectivo esperado en caja = fondo + ventas en efectivo − propinas retiradas en efectivo + (ingresos − egresos)
-  const neto=fondo+efectivo-prop+mov.neto;
-  // v111: "Efectivo al cerrar" es un campo CALCULADO de SOLO LECTURA = neto esperado. Solo se ajusta vía Ingresos/Egresos.
+  // v112 (#5 corregido): ni ingresos ni egresos modifican el efectivo BASE; AMBOS solo se registran.
+  //   BASE (SIN i/e) = fondo + ventas en efectivo − propinas retiradas en efectivo
+  //   CON i/e        = BASE + ingresos − egresos   (efectivo real que queda)
+  const base=fondo+efectivo-prop;
+  const con=base+mov.ingresos-mov.egresos;
+  // El campo "Efectivo esperado al cerrar" (solo lectura) muestra LAS DOS cifras.
   const cierreEl=document.getElementById('cierre-monto');
-  if(cierreEl){ const cur=parseFloat(cierreEl.value); if(!(cur===neto)) cierreEl.value=neto; }
+  if(cierreEl){ const txt='SIN i/e: $'+base+'   ·   CON i/e: $'+con; if(cierreEl.value!==txt) cierreEl.value=txt; }
   const resFondo=document.getElementById('res-fondo');if(resFondo)resFondo.textContent='$'+fondo;
-  document.getElementById('res-pagos').textContent=mov.neto===0?'$0':(mov.neto>0?'+ $'+mov.neto:'− $'+Math.abs(mov.neto));
+  // Ingresos y egresos: solo registro (no afectan el efectivo).
+  document.getElementById('res-pagos').textContent=(mov.ingresos>0?'+ $'+mov.ingresos:'$0')+(mov.egresos>0?' / − $'+mov.egresos:'')+'  (registro)';
   document.getElementById('res-propinas').textContent=prop?'− $'+prop:'$0';
-  document.getElementById('res-neto').textContent='$'+neto;
-  document.getElementById('res-cierre').textContent='$'+neto;
+  document.getElementById('res-neto').textContent='$'+base;
+  document.getElementById('res-cierre').textContent='$'+con;
   // El efectivo al cerrar es el valor calculado → la diferencia es 0 por construcción (ya no es conteo físico vs esperado).
   const diffEl=document.getElementById('res-diff');
   diffEl.textContent='$0 — calculado (sin conteo manual)';diffEl.style.color='#2e7d32';
@@ -9773,7 +9899,6 @@ function buildReporte(checkoutHora){
   const totalGlobal=_vig.reduce((s,v)=>s+v.total,0);
   const totalEfectivo=_vig.filter(v=>v.metodo==='efectivo').reduce((s,v)=>s+v.total,0);
   const totalTarjeta=_vig.filter(v=>v.metodo==='tarjeta').reduce((s,v)=>s+v.total,0);
-  const cierre=parseFloat(document.getElementById('cierre-monto').value)||0;
   const prop=parseFloat(document.getElementById('propinas-monto').value)||0;
   const loteV=parseFloat(document.getElementById('lote-ventas').value)||0;
   const loteP=parseFloat(document.getElementById('lote-propinas').value)||0;
@@ -9808,14 +9933,18 @@ function buildReporte(checkoutHora){
   r+='  (+) Ventas en efectivo del día    $'+totalEfectivo+'\n';
   if(prop)r+='  (−) Propinas retiradas en ef.    $'+prop+'\n';
   if(movRep.detalle.length){
-    if(movRep.ingresos>0)r+='  (+) Ingresos menores               $'+movRep.ingresos+'\n';
-    if(movRep.egresos>0)r+='  (−) Egresos menores                $'+movRep.egresos+'\n';
-    movRep.detalle.forEach(d=>{r+='       '+(d.tipo==='ingreso'?'(+)':'(−)')+' '+d.concepto+': $'+d.monto+'\n';});
+    if(movRep.ingresos>0)r+='  (registro) Ingresos menores        $'+movRep.ingresos+'  (NO afecta el efectivo base)\n';
+    if(movRep.egresos>0)r+='  (registro) Egresos menores         $'+movRep.egresos+'  (NO afecta el efectivo base)\n';
+    movRep.detalle.forEach(d=>{r+='       (reg) '+(d.tipo==='ingreso'?'+':'−')+' '+d.concepto+': $'+d.monto+'\n';});
   }
-  const neto=fondo+totalEfectivo-(prop||0)+movRep.neto;
+  // v112 (#5 corregido): ni ingresos ni egresos modifican el efectivo BASE; ambos solo se registran.
+  const efBase=fondo+totalEfectivo-(prop||0);
+  const efCon=efBase+movRep.ingresos-movRep.egresos;
   r+='      '+'─'.repeat(32)+'\n';
-  r+='  Efectivo esperado al cerrar      $'+neto+'  (calculado)\n';
+  r+='  Efectivo SIN ingresos/egresos    $'+efBase+'  (fondo + ventas ef. − propinas)\n';
+  r+='  Efectivo CON ingresos/egresos    $'+efCon+'  (= SIN + ingresos − egresos)\n';
   r+='  (Las ventas con tarjeta NO entran a la caja: se concilian por el lote de la terminal.)\n';
+  r+='  (Ingresos y egresos solo se registran; el efectivo base no se modifica con ellos.)\n';
   r+='─'.repeat(44)+'\n\n';
   if(cb){r+='COLD BREW\n  Café: '+cb.gramos+'g  |  Molienda #'+cb.molienda+'  |  Preparado: '+cb.horaEntrada+'\n  Infusión: '+cb.horasInfusion+' hrs  →  Filtrar: '+cb.filtradoStr+'\n\n';}
   const proDone=hoy.filter(ta=>thPro[TAREAS.indexOf(ta)]);
@@ -9915,13 +10044,16 @@ function ejecutarEnvioReporte(h){
   const loteP = parseFloat(document.getElementById('lote-propinas').value)||0;
   const prop = parseFloat(document.getElementById('propinas-monto').value)||0;
   const mov2 = leerMovimientos();
-  const pagos = mov2.egresos; // egresos para el Sheet
+  const pagos = mov2.egresos; // egresos para el Sheet (solo registro)
   const fondo2 = fondoAnteriorVal();
-  const neto = fondo2 + totalEfectivo - prop + mov2.neto;
-  const cierreVal = parseFloat(document.getElementById('cierre-monto').value)||0;
-  // Guardar el efectivo físico de cierre como fondo del día siguiente
+  // v112 (#5 corregido): efectivo BASE (sin i/e) y efectivo CON i/e. Ni ingresos ni egresos tocan el base.
+  const efBase = fondo2 + totalEfectivo - prop;
+  const efCon  = efBase + mov2.ingresos - mov2.egresos;
+  const neto = efCon; // "neto_caja" reportado = efectivo real que queda (con i/e)
+  // Guardar como FONDO DEL DÍA SIGUIENTE el efectivo CON i/e (lo que realmente queda en caja).
+  // DUDA Jorge: confirmar que el fondo de mañana debe ser la cifra CON ingresos/egresos.
   try{
-    localStorage.setItem('inemuri_fondo_caja', JSON.stringify({fecha:new Date().toLocaleDateString('es-MX'), monto:cierreVal}));
+    localStorage.setItem('inemuri_fondo_caja', JSON.stringify({fecha:new Date().toLocaleDateString('es-MX'), monto:efCon}));
     localStorage.removeItem('inemuri_fondo_hoy');
   }catch(e){}
   const hoy = tareasDeHoy();
@@ -9937,7 +10069,7 @@ function ejecutarEnvioReporte(h){
       total_ventas_tarjeta: loteV,
       total_propinas_terminal: loteP,
       neto_caja: neto,
-      diferencia_caja: cierreVal - neto,
+      diferencia_caja: 0,
       inventario_cerrado: inventarioCerrado ? 'Sí' : 'No',
       tareas_completadas: tareasDone,
       tareas_total: hoy.length,
@@ -10154,7 +10286,7 @@ window.addEventListener('focus', verificarCambioDia);
   <div id="win-taskbar">
     <div id="win-start-btn"><span style="font-size:13px;">🪟</span><span>Inicio</span></div>
     <div style="width:1px;height:20px;background:#808080;box-shadow:1px 0 0 #fff;margin:0 2px;flex-shrink:0;"></div>
-    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v5.4</span></div>
+    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v5.5</span></div>
     <div style="margin-left:auto;display:flex;align-items:center;">
       <div id="win-taskbar-clock" style="padding:0 8px;height:22px;display:flex;align-items:center;gap:5px;font-size:11px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span>🔊</span><span id="win-clock">00:00</span></div>
       <div id="win-taskbar-climate" style="padding:0 8px;height:22px;display:flex;align-items:center;font-size:11px;gap:3px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span id="win-weather">🌤 —°C</span></div>
@@ -10177,7 +10309,7 @@ window.addEventListener('focus', verificarCambioDia);
     #win-start-menu .wsm-sep{ height:0; border-top:1px solid #808080; border-bottom:1px solid #fff; margin:3px 6px; }
     #win-start-btn.active-start{ box-shadow: inset 1px 1px 0 #0a0a0a, inset -1px -1px 0 #ffffff, inset 2px 2px 0 #808080, inset -2px -2px 0 #dfdfdf !important; }
 
-    #manual-window{ position:fixed; z-index:9600; display:none; width:780px; max-width:94vw; height:600px; max-height:82vh; background:#c0c0c0; flex-direction:column;
+    #manual-window{ position:fixed; z-index:9600; display:none; width:900px; max-width:96vw; height:680px; max-height:88vh; background:#c0c0c0; flex-direction:column;
       box-shadow: inset -1px -1px 0 #404040, inset 1px 1px 0 #dfdfdf, inset -2px -2px 0 #808080, inset 2px 2px 0 #fff, 5px 5px 0 rgba(0,0,0,.45); border:1px solid #000; }
     #manual-window.open{ display:flex; }
     #manual-window #manual-titlebar{ height:24px; background:linear-gradient(to right,#1060c0 0%,#0030a0 50%,#001880 100%); display:flex; align-items:center; justify-content:space-between; padding:0 4px 0 8px; cursor:move; touch-action:none; user-select:none; flex:0 0 auto; }
