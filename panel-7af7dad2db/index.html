@@ -205,6 +205,11 @@
       <div id="ventas"><div class="empty">—</div></div>
     </div>
 
+    <div class="ft">
+      <span class="up">POS <b id="pos-ver">—</b></span>
+      <span class="up">PANEL <b id="panel-ver">p1</b></span>
+    </div>
+
   </div>
 </div>
 
@@ -215,6 +220,7 @@
 // ════════ PANEL ════════
 const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxG0Jrkng57AlB_Xfi8IL0rEPj0DXfa4oxVFa1ZY0-vt597CLZ_HlFF8ecDvMH84yusyA/exec';
 const PANEL_PIN='8899';
+const PANEL_VER='p1';   // versión del Panel; el deploy la lee de aquí para version.json
 const REFRESH_MS=30000;
 const MAX_VENTAS=15;
 
@@ -247,6 +253,7 @@ function abrirApp(){
     setInterval(cargar,REFRESH_MS);
     setInterval(function(){ if(_online && !_cerrado && !_modoHistorico){ var u=$('upd'); if(u) u.textContent='LIVE · '+hora(); } },1000); // reloj que avanza cada segundo
     wireOtroDia();
+    cargarVersion();
     ['touchstart','pointerdown','keydown','click'].forEach(function(ev){
       document.addEventListener(ev, function(){ if($('app').style.display!=='none') armLock(); }, {passive:true});
     });
@@ -259,6 +266,18 @@ function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,function(c){retu
 function fmt(n){ return (Math.round(n||0)).toLocaleString('es-MX'); }
 function hora(){ return new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
 function setConn(ok,txt){ $('live').className='live'+(ok?'':' off'); $('upd').textContent=txt; $('live').querySelector('.b').textContent=ok?'●':'○'; }
+
+// Vínculo de versiones POS↔Panel: lee version.json (chico, ~60 B) de la raíz del sitio.
+// Si no carga, deja "POS —" sin romper el panel.
+async function cargarVersion(){
+  try{
+    const r=await fetch('../version.json?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok) return;
+    const j=await r.json();
+    if(j&&j.pos)   $('pos-ver').textContent=j.pos;
+    if(j&&j.panel) $('panel-ver').textContent=j.panel;
+  }catch(e){ /* offline / sin archivo: queda "POS —" */ }
+}
 
 async function cargar(){
   if(_modoHistorico) return;
