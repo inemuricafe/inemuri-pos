@@ -186,7 +186,12 @@ $('pin').addEventListener('keydown',function(e){ if(e.key==='Enter')entrar(); })
 $('pin').addEventListener('input',function(){ $('pin-err').textContent=''; if(this.value.length===4)entrar(); });
 var _rl=$('reload'); if(_rl)_rl.addEventListener('click',cargar);
 
-function abrirApp(){ $('gate').style.display='none'; $('app').style.display='block'; cargar(); setInterval(cargar,REFRESH_MS); }
+let _online=false, _cerrado=false;
+function abrirApp(){
+  $('gate').style.display='none'; $('app').style.display='block';
+  cargar(); setInterval(cargar,REFRESH_MS);
+  setInterval(function(){ if(_online && !_cerrado){ var u=$('upd'); if(u) u.textContent='LIVE · '+hora(); } },1000); // reloj que avanza cada segundo
+}
 if(sessionStorage.getItem('inemuri_panel_ok')==='1'){ abrirApp(); }
 
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
@@ -199,9 +204,30 @@ async function cargar(){
   try{
     const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'leer_sesion'})});
     const j=await r.json();
-    setConn(true,'LIVE · '+hora());
-    pintar((j&&j.sesion)?j.sesion:{});
-  }catch(e){ setConn(false,'OFFLINE · REINTENTANDO'); }
+    _online=true;
+    const s=(j&&j.sesion)?j.sesion:{};
+    const hayVivo=(s.ventas&&s.ventas.lista&&s.ventas.lista.length)||(s.turnos&&Object.keys(s.turnos).length);
+    if(hayVivo){ _cerrado=false; setConn(true,'LIVE · '+hora()); pintar(s); }
+    else { await mostrarCerrado(); }
+  }catch(e){ _online=false; _cerrado=false; setConn(false,'OFFLINE · REINTENTANDO'); }
+}
+
+// Sesión vacía (día cerrado o aún sin ventas): mostrar el total del último reporte de cierre
+async function mostrarCerrado(){
+  try{
+    const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'leer_reportes'})});
+    const j=await r.json();
+    const reps=j.reportes||[];
+    const rep=reps.length?reps[reps.length-1]:null;
+    if(!rep){ _cerrado=false; setConn(true,'LIVE · '+hora()); pintar({}); return; }
+    _cerrado=true; setConn(true,'CERRADO · '+hora());
+    const ef=parseFloat(rep.total_ventas_efectivo)||0, tar=parseFloat(rep.total_ventas_tarjeta)||0;
+    $('total').textContent=fmt(ef+tar); $('count').textContent='—';
+    $('ef').textContent=fmt(ef); $('tar').textContent=fmt(tar);
+    const fch=rep.fecha?String(rep.fecha).slice(0,15):'';
+    $('turnos').innerHTML='<div class="empty">DÍA CERRADO'+(fch?' · '+esc(fch):'')+'</div>';
+    $('ventas').innerHTML='<div class="empty">CIERRE HECHO — DETALLE EN EL REPORTE</div>';
+  }catch(e){ _cerrado=false; setConn(true,'LIVE · '+hora()); pintar({}); }
 }
 
 function pintar(s){
