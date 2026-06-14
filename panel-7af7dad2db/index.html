@@ -219,13 +219,20 @@ async function mostrarCerrado(){
     const j=await r.json();
     const reps=j.reportes||[];
     const rep=reps.length?reps[reps.length-1]:null;
-    if(!rep){ _cerrado=false; setConn(true,'LIVE · '+hora()); pintar({}); return; }
+    // ¿el último reporte es de HOY? (si es de ayer, el día nuevo arranca en 0)
+    let repISO='';
+    if(rep && rep.fecha){
+      const d=new Date(rep.fecha);
+      if(!isNaN(d)) repISO=d.toLocaleDateString('en-CA');
+      else { const m=String(rep.fecha).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if(m){const yy=m[3].length===2?'20'+m[3]:m[3]; repISO=yy+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);} }
+    }
+    const hoyISO=new Date().toLocaleDateString('en-CA');
+    if(!rep || repISO!==hoyISO){ _cerrado=false; setConn(true,'LIVE · '+hora()); pintar({}); return; } // día nuevo / sin ventas hoy → 0
     _cerrado=true; setConn(true,'CERRADO · '+hora());
     const ef=parseFloat(rep.total_ventas_efectivo)||0, tar=parseFloat(rep.total_ventas_tarjeta)||0;
     $('total').textContent=fmt(ef+tar); $('count').textContent='—';
     $('ef').textContent=fmt(ef); $('tar').textContent=fmt(tar);
-    const fch=rep.fecha?String(rep.fecha).slice(0,15):'';
-    $('turnos').innerHTML='<div class="empty">DÍA CERRADO'+(fch?' · '+esc(fch):'')+'</div>';
+    $('turnos').innerHTML='<div class="empty">DÍA CERRADO</div>';
     $('ventas').innerHTML='<div class="empty">CIERRE HECHO — DETALLE EN EL REPORTE</div>';
   }catch(e){ _cerrado=false; setConn(true,'LIVE · '+hora()); pintar({}); }
 }
