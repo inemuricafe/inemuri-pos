@@ -201,12 +201,30 @@ $('pin').addEventListener('keydown',function(e){ if(e.key==='Enter')entrar(); })
 $('pin').addEventListener('input',function(){ $('pin-err').textContent=''; if(this.value.length===4)entrar(); });
 var _rl=$('reload'); if(_rl)_rl.addEventListener('click',cargar);
 
-let _online=false, _cerrado=false, _modoHistorico=false;
+let _online=false, _cerrado=false, _modoHistorico=false, _inited=false;
+const LOCK_MS=5*60*1000; // auto-bloqueo: 5 min sin actividad → pide el código otra vez
+let _lockTimer=null;
+function armLock(){ clearTimeout(_lockTimer); _lockTimer=setTimeout(reLock, LOCK_MS); }
+function reLock(){
+  try{ sessionStorage.removeItem('inemuri_panel_ok'); }catch(e){}
+  clearTimeout(_lockTimer); _modoHistorico=false;
+  $('app').style.display='none'; $('gate').style.display='flex';
+  $('pin').value=''; $('pin-err').textContent='';
+  $('btn-hoy').style.display='none'; $('btn-otrodia').style.display='';
+  setTimeout(function(){ try{ $('pin').focus(); }catch(e){} },60);
+}
 function abrirApp(){
   $('gate').style.display='none'; $('app').style.display='block';
-  cargar(); setInterval(cargar,REFRESH_MS);
-  setInterval(function(){ if(_online && !_cerrado && !_modoHistorico){ var u=$('upd'); if(u) u.textContent='LIVE · '+hora(); } },1000); // reloj que avanza cada segundo
-  wireOtroDia();
+  if(!_inited){
+    _inited=true;
+    setInterval(cargar,REFRESH_MS);
+    setInterval(function(){ if(_online && !_cerrado && !_modoHistorico){ var u=$('upd'); if(u) u.textContent='LIVE · '+hora(); } },1000); // reloj que avanza cada segundo
+    wireOtroDia();
+    ['touchstart','pointerdown','keydown','click'].forEach(function(ev){
+      document.addEventListener(ev, function(){ if($('app').style.display!=='none') armLock(); }, {passive:true});
+    });
+  }
+  cargar(); armLock();
 }
 if(sessionStorage.getItem('inemuri_panel_ok')==='1'){ abrirApp(); }
 
