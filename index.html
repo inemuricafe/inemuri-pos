@@ -2048,7 +2048,7 @@ input[type="time"], input[type="date"], textarea, select {
     <!-- Barra de título -->
     <div id="win-title-bar">
       <div id="win-title-icon">☕</div>
-      <div id="win-title-text">Inemuri Café v5.7 — POS</div>
+      <div id="win-title-text">Inemuri Café v115 — POS</div>
       <div id="win-title-btns">
         <div class="win-ctrl-btn">_</div>
         <div class="win-ctrl-btn">□</div>
@@ -7584,10 +7584,16 @@ async function buscarReporte(){
   if(!fechaInput&&!barista&&!texto){await cargarListaReportes('','');return;}
 
   // Con fecha exacta (y posiblemente barista) → buscar ese día
+  // v115: el backend guarda la fecha como Date y la devuelve en ISO; construir 'dd/mm/yy' NO coincide.
+  // Se resuelve contra la lista de reportes (comparando Y/M/D) y se abre con el valor de fecha que el backend reconoce.
   if(fechaInput&&!texto){
-    const [y,m,d]=fechaInput.split('-');
-    const fechaCorto=d+'/'+m+'/'+y.slice(2);
-    await buscarReportePorFecha(fechaCorto,barista);
+    if(!APPS_SCRIPT_URL){renderSeccionReportes();return;}
+    const [y,m,d]=fechaInput.split('-').map(Number);
+    const rl=await api('leer_reportes',{});
+    const reps=(rl&&rl.reportes)||[];
+    const match=reps.find(function(rep){const f=new Date(rep.fecha);return f.getFullYear()===y&&(f.getMonth()+1)===m&&f.getDate()===d;});
+    if(!match){mostrarToast('No hay reporte para esa fecha');return;}
+    await buscarReportePorFecha(match.fecha,barista);
     return;
   }
 
@@ -7600,11 +7606,10 @@ async function buscarReporte(){
   // Filtrar por barista
   if(barista) lista=lista.filter(rep=>(rep.barista_cierre||'').toLowerCase()===barista.toLowerCase());
 
-  // Filtrar por fecha si se especificó junto con texto
+  // Filtrar por fecha si se especificó junto con texto (v115: comparar Y/M/D, no 'dd/mm/yy')
   if(fechaInput){
-    const [y,m,d]=fechaInput.split('-');
-    const fechaCorto=d+'/'+m+'/'+y.slice(2);
-    lista=lista.filter(rep=>rep.fecha===fechaCorto);
+    const [y,m,d]=fechaInput.split('-').map(Number);
+    lista=lista.filter(function(rep){const f=new Date(rep.fecha);return f.getFullYear()===y&&(f.getMonth()+1)===m&&f.getDate()===d;});
   }
 
   // Filtrar por texto — buscar en el reporte completo
@@ -10004,6 +10009,9 @@ function confirmarEnvio(){
 
 function ejecutarEnvioReporte(h){
   reporteEnviado=true;
+  // v115: capturar quién cierra ANTES de los renders. renderBaristaSelector pone baristaActivo=null
+  // al detectar el checkout, así que si no se captura aquí, barista_cierre llega vacío al Sheet.
+  const baristaCierre = baristaActivo || '';
   // Limpiar tareas espontáneas (son de un día)
   tareasEspontaneas=[];
   document.getElementById('send-cierre').disabled=true;document.getElementById('send-cierre').textContent='✓ Reporte enviado';
@@ -10040,7 +10048,7 @@ function ejecutarEnvioReporte(h){
     // Enviar al Apps Script (incluye Gmail directo desde el servidor)
     api('guardar_reporte', {
       fecha: fechaCorta(),
-      barista_cierre: baristaActivo||'',
+      barista_cierre: baristaCierre,
       total_ventas_efectivo: totalEfectivo,
       total_ventas_tarjeta: loteV,
       total_propinas_terminal: loteP,
@@ -10262,7 +10270,7 @@ window.addEventListener('focus', verificarCambioDia);
   <div id="win-taskbar">
     <div id="win-start-btn"><span style="font-size:13px;">🪟</span><span>Inicio</span></div>
     <div style="width:1px;height:20px;background:#808080;box-shadow:1px 0 0 #fff;margin:0 2px;flex-shrink:0;"></div>
-    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v5.7</span></div>
+    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v115</span></div>
     <div style="margin-left:auto;display:flex;align-items:center;">
       <div id="win-taskbar-clock" style="padding:0 8px;height:22px;display:flex;align-items:center;gap:5px;font-size:11px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span>🔊</span><span id="win-clock">00:00</span></div>
       <div id="win-taskbar-climate" style="padding:0 8px;height:22px;display:flex;align-items:center;font-size:11px;gap:3px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span id="win-weather">🌤 —°C</span></div>
