@@ -296,9 +296,19 @@ async function mostrarDiaHistorico(iso){
   $('hd-ventas').textContent='[ VENTAS DEL DÍA ]'; $('hd-turnos').textContent='[ CIERRE ]';
   setConn(true,'HISTÓRICO');
   try{
-    const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'leer_reportes'})});
-    const j=await r.json();
-    const rep=(j.reportes||[]).find(function(x){ return repToISO(x.fecha)===iso; });
+    let rep=null, txt='';
+    // 1) intentar el reporte de ese día con su TEXTO completo (trae conteo + quién cerró)
+    try{
+      const r1=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'leer_reporte_fecha',fecha:iso})});
+      const j1=await r1.json();
+      if(j1 && j1.reporte){ rep=j1.reporte; txt=rep.reporte_completo||''; }
+    }catch(e){}
+    // 2) respaldo: lista de reportes (solo totales, sin conteo)
+    if(!rep){
+      const r2=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'leer_reportes'})});
+      const j2=await r2.json();
+      rep=(j2.reportes||[]).find(function(x){ return repToISO(x.fecha)===iso; })||null;
+    }
     if(!rep){
       $('total').textContent='0'; $('count').textContent='—'; $('ef').textContent='0'; $('tar').textContent='0';
       $('turnos').innerHTML='<div class="empty">SIN REPORTE DE ESE DÍA</div>';
@@ -306,11 +316,14 @@ async function mostrarDiaHistorico(iso){
       return;
     }
     const ef=parseFloat(rep.total_ventas_efectivo)||0, tar=parseFloat(rep.total_ventas_tarjeta)||0;
-    $('total').textContent=fmt(ef+tar); $('count').textContent='—';
+    // conteo y quién cerró: del texto del reporte si está disponible
+    let num='—'; const mC=txt.match(/(\d+)\s+venta\(s\)\s+vigentes/i); if(mC) num=mC[1];
+    let cerro=rep.barista_cierre||''; if(!cerro && txt){ const mq=txt.match(/Cierre realizado por:\s*([^]+?)\s{2,}/i); if(mq) cerro=mq[1].trim(); }
+    $('total').textContent=fmt(ef+tar); $('count').textContent=num;
     $('ef').textContent=fmt(ef); $('tar').textContent=fmt(tar);
-    $('turnos').innerHTML='<div class="kv"><span class="k up">Cerró</span><span class="dots"></span><span class="v">'+esc(rep.barista_cierre||'—')+'</span></div>'
+    $('turnos').innerHTML='<div class="kv"><span class="k up">Cerró</span><span class="dots"></span><span class="v">'+esc(cerro||'—')+'</span></div>'
       +'<div class="kv"><span class="k up">Tareas</span><span class="dots"></span><span class="v">'+esc(String(rep.tareas_completadas||0))+'/'+esc(String(rep.tareas_total||0))+'</span></div>';
-    $('ventas').innerHTML='<div class="empty">SOLO TOTALES DEL CIERRE · DETALLE EN EL REPORTE</div>';
+    $('ventas').innerHTML='<div class="empty">DETALLE COMPLETO EN EL REPORTE (CORREO)</div>';
   }catch(e){ setConn(false,'OFFLINE'); }
 }
 function volverHoy(){
