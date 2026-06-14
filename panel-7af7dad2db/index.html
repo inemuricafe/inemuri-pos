@@ -109,6 +109,12 @@
   .cal-grid .d:active{background:var(--fg);color:#000;}
   .cal-grid .d.off{color:var(--dim2);pointer-events:none;}
   .cal-grid .d.today{border-color:var(--ln2);}
+  .cal-nav #cal-title{cursor:pointer;}
+  .cal-grid.mode-mes{grid-template-columns:repeat(4,1fr);gap:4px;padding:10px;}
+  .cal-grid .mo{text-align:center;padding:13px 0;cursor:pointer;border:1px solid transparent;}
+  .cal-grid .mo:active{background:var(--fg);color:#000;}
+  .cal-grid .mo.off{color:var(--dim2);pointer-events:none;}
+  .cal-grid .mo.today{border-color:var(--ln2);}
 
   .kv{display:flex;align-items:baseline;gap:7px;padding:1.5px 0;}
   .kv .k{white-space:nowrap;}
@@ -309,17 +315,43 @@ function wireOtroDia(){
   $('cal-x').addEventListener('click',closeCal);
   $('cal-prev').addEventListener('click',calPrev);
   $('cal-next').addEventListener('click',calNext);
+  $('cal-title').addEventListener('click',function(){ _calView=(_calView==='day'?'month':'day'); renderCal(); });
   $('cal-overlay').addEventListener('click',function(e){ if(e.target===$('cal-overlay')) closeCal(); });
 }
-// ── Calendario propio ──
-let _calY=0,_calM=0;
+// ── Calendario propio (modo día / modo mes) ──
+let _calY=0,_calM=0,_calView='day';
 const _MESES=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-function openCal(){ const t=new Date(); _calY=t.getFullYear(); _calM=t.getMonth(); renderCal(); $('cal-overlay').classList.add('open'); }
+const _MABBR=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+function openCal(){ const t=new Date(); _calY=t.getFullYear(); _calM=t.getMonth(); _calView='day'; renderCal(); $('cal-overlay').classList.add('open'); }
 function closeCal(){ $('cal-overlay').classList.remove('open'); }
-function calPrev(){ _calM--; if(_calM<0){_calM=11;_calY--;} renderCal(); }
-function calNext(){ const t=new Date(); if(_calY===t.getFullYear() && _calM===t.getMonth()) return; _calM++; if(_calM>11){_calM=0;_calY++;} renderCal(); }
+function calPrev(){
+  if(_calView==='month'){ _calY--; }
+  else { _calM--; if(_calM<0){_calM=11;_calY--;} }
+  renderCal();
+}
+function calNext(){
+  const t=new Date();
+  if(_calView==='month'){ if(_calY>=t.getFullYear()) return; _calY++; }
+  else { if(_calY===t.getFullYear() && _calM===t.getMonth()) return; _calM++; if(_calM>11){_calM=0;_calY++;} }
+  renderCal();
+}
 function renderCal(){
-  $('cal-title').textContent=_MESES[_calM]+' '+_calY;
+  const t=new Date(); const cy=t.getFullYear(), cm=t.getMonth();
+  const g=$('cal-grid');
+  if(_calView==='month'){
+    $('cal-title').textContent=''+_calY+'  ▾';
+    let html='';
+    for(let m=0;m<12;m++){
+      const fut=(_calY>cy)||(_calY===cy && m>cm);
+      html+='<div class="mo'+(fut?' off':'')+(_calY===cy&&m===cm?' today':'')+'"'+(fut?'':' data-m="'+m+'"')+'>'+_MABBR[m]+'</div>';
+    }
+    g.className='cal-grid mode-mes'; g.innerHTML=html;
+    g.querySelectorAll('.mo[data-m]').forEach(function(el){
+      el.addEventListener('click',function(){ _calM=parseInt(el.getAttribute('data-m'),10); _calView='day'; renderCal(); });
+    });
+    return;
+  }
+  $('cal-title').textContent=_MESES[_calM]+' '+_calY+'  ▾';
   const today=new Date(); today.setHours(0,0,0,0);
   const first=new Date(_calY,_calM,1).getDay();
   const dias=new Date(_calY,_calM+1,0).getDate();
@@ -331,7 +363,7 @@ function renderCal(){
     const fut=dt>today, hoy=dt.getTime()===today.getTime();
     html+='<div class="d'+(fut?' off':'')+(hoy?' today':'')+'"'+(fut?'':' data-iso="'+iso+'"')+'>'+d+'</div>';
   }
-  const g=$('cal-grid'); g.innerHTML=html;
+  g.className='cal-grid'; g.innerHTML=html;
   g.querySelectorAll('.d[data-iso]').forEach(function(el){
     el.addEventListener('click',function(){ const iso=el.getAttribute('data-iso'); closeCal(); if(iso===new Date().toLocaleDateString('en-CA')) volverHoy(); else mostrarDiaHistorico(iso); });
   });
