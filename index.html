@@ -2048,7 +2048,7 @@ input[type="time"], input[type="date"], textarea, select {
     <!-- Barra de título -->
     <div id="win-title-bar">
       <div id="win-title-icon">☕</div>
-      <div id="win-title-text">Inemuri Café v5.6 — POS</div>
+      <div id="win-title-text">Inemuri Café v5.7 — POS</div>
       <div id="win-title-btns">
         <div class="win-ctrl-btn">_</div>
         <div class="win-ctrl-btn">□</div>
@@ -6977,30 +6977,48 @@ function guardarSesionDebounced(seccion, datos) {
 
 async function cargarSesionDesdeServidor() {
   if (!APPS_SCRIPT_URL) return;
-  // v112: si hubo cambio de día, la sesión del servidor es de ayer → NO restaurar; resetearla.
-  if (_sesionDiaObsoleta) { try{ resetearSesionServidor(); }catch(e){} return; }
+  // v112: si hubo cambio de día, la sesión del servidor (ventas/turnos) es de ayer → NO restaurar; resetearla.
+  const obsoleta = _sesionDiaObsoleta;
+  if (obsoleta) { try{ resetearSesionServidor(); }catch(e){} }
   const r = await api('leer_sesion', {});
   if (!r || !r.sesion) return;
   const s = r.sesion;
 
-  // Restaurar ventas
-  if (s.ventas && s.ventas.lista) {
-    ventas = s.ventas.lista;
-    ventaCount = ventas.filter(function(v){return !v.esCorreccionDe;}).length;
-    renderVentas();
-    mostrarToast('Sesión restaurada: ' + ventas.length + ' ventas');
+  if (!obsoleta) {
+    // Restaurar ventas
+    if (s.ventas && s.ventas.lista) {
+      ventas = s.ventas.lista;
+      ventaCount = ventas.filter(function(v){return !v.esCorreccionDe;}).length;
+      renderVentas();
+      mostrarToast('Sesión restaurada: ' + ventas.length + ' ventas');
+    }
+    // Restaurar turnos
+    if (s.turnos) {
+      turnos = s.turnos;
+      renderBaristaSelector();
+      renderTurnoCards();
+    }
+    // Restaurar proactivos
+    if (s.proactivos) {
+      tareasHorasProactivos = s.proactivos;
+      renderTareas();
+    }
   }
-  // Restaurar turnos
-  if (s.turnos) {
-    turnos = s.turnos;
-    renderBaristaSelector();
-    renderTurnoCards();
-  }
-  // Restaurar proactivos
-  if (s.proactivos) {
-    tareasHorasProactivos = s.proactivos;
-    renderTareas();
-  }
+
+  // v114: cuentas abiertas (pestañas) NO son del día — restaurarlas desde la nube SOLO si localmente
+  // estamos en el estado inicial vacío (p.ej. Safari borrado o iPad nuevo), para no resucitar cuentas ya cerradas.
+  try{
+    if (s.pestanas && Array.isArray(s.pestanas.lista) && s.pestanas.lista.length){
+      const fresca = (pestanas.length<=1) && !(pestanas[0] && (pestanas[0].custom || Object.keys(pestanas[0].orden||{}).length));
+      if (fresca){
+        pestanas = s.pestanas.lista;
+        pestanaSeq = s.pestanas.seq || pestanas.length;
+        const tgt = pestanas.find(function(x){return x.id===s.pestanas.activa;}) || pestanas[0];
+        pestanaActiva=null; activarPestana(tgt.id,true); guardarPestanas();
+        mostrarToast('Cuentas abiertas restauradas: '+pestanas.length,2500);
+      }
+    }
+  }catch(e){}
 }
 
 async function cargarTareasConfig(){
@@ -9090,8 +9108,11 @@ function calcularCambio(){
 // ── PESTAÑAS DE CUENTAS (multi-orden; sobreviven recarga y medianoche) ──
 let pestanas=[],pestanaActiva=null,pestanaSeq=0;
 function escPest(s){return String(s).replace(/[<>&"]/g,ch=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[ch]));}
+let _pestTimer=null;
 function guardarPestanas(){
   try{ localStorage.setItem('inemuri_pestanas', JSON.stringify({lista:pestanas,activa:pestanaActiva,seq:pestanaSeq})); }catch(e){}
+  // v114: respaldo de cuentas abiertas en la nube (timer propio, NO usa el de ventas/turnos para no pisarlo)
+  try{ if(APPS_SCRIPT_URL){ clearTimeout(_pestTimer); _pestTimer=setTimeout(function(){ api('guardar_sesion',{seccion:'pestanas',barista:baristaActivo||'',datos:{lista:pestanas,activa:pestanaActiva,seq:pestanaSeq}}); },2000); } }catch(e){}
 }
 function persistirPestanaActiva(){
   const p=pestanas.find(x=>x.id===pestanaActiva); if(!p)return;
@@ -9127,10 +9148,14 @@ function cerrarPestana(id){
   if(window._corrigiendoFolio){mostrarToast('Termina o cancela la corrección primero',2500);return;}
   const p=pestanas.find(x=>x.id===id); if(!p)return;
   const conAlgo=(id===pestanaActiva)?Object.keys(orden).length:Object.keys(p.orden||{}).length;
-  if(conAlgo){mostrarToast('La pestaña tiene productos; cóbrala o vacíala primero',2500);return;}
+  if(conAlgo){
+    // v114: cerrar una cuenta con saldo sin cobrar pide confirmación simple (se descarta).
+    let tot=0; try{ tot=(id===pestanaActiva)?getTotalFinal():(p.totalCache||0); }catch(e){ tot=p.totalCache||0; }
+    if(!confirm('¿Cancelar la cuenta «'+p.nombre+'»'+(tot>0?' de $'+tot:'')+' sin cobrar?\nSe descartará (no se registra como venta).')) return;
+  }
   pestanas=pestanas.filter(x=>x.id!==id);
   if(!pestanas.length){pestanaActiva=null;nuevaPestana();return;}
-  if(id===pestanaActiva){pestanaActiva=null;activarPestana(pestanas[0].id,true);}
+  if(id===pestanaActiva){pestanaActiva=null;orden={};promoActiva=null;activarPestana(pestanas[0].id,true);}
   else{guardarPestanas();renderPestanas();}
 }
 function cerrarPestanaTrasRegistro(){
@@ -9153,7 +9178,7 @@ function renderPestanas(){
     h+='<div class="pestana'+(act?' activa':'')+'" data-id="'+p.id+'">'
       +'<span class="pestana-nombre">'+escPest(p.nombre)+'</span>'
       +(tot>0?'<span class="pestana-total">$'+tot+'</span>':'')
-      +((act&&vacia)?'<span class="pestana-x" data-x="'+p.id+'">✕</span>':'')
+      +'<span class="pestana-x" data-x="'+p.id+'">✕</span>' /* v114: cerrar disponible en todas */
       +'</div>';
   });
   h+='<div class="pestana pestana-nueva" id="pestana-add" title="Nueva cuenta">+</div>';
@@ -10237,7 +10262,7 @@ window.addEventListener('focus', verificarCambioDia);
   <div id="win-taskbar">
     <div id="win-start-btn"><span style="font-size:13px;">🪟</span><span>Inicio</span></div>
     <div style="width:1px;height:20px;background:#808080;box-shadow:1px 0 0 #fff;margin:0 2px;flex-shrink:0;"></div>
-    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v5.6</span></div>
+    <div id="win-taskbar-app"><span style="font-size:11px;">☕</span><span>Inemuri Café v5.7</span></div>
     <div style="margin-left:auto;display:flex;align-items:center;">
       <div id="win-taskbar-clock" style="padding:0 8px;height:22px;display:flex;align-items:center;gap:5px;font-size:11px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span>🔊</span><span id="win-clock">00:00</span></div>
       <div id="win-taskbar-climate" style="padding:0 8px;height:22px;display:flex;align-items:center;font-size:11px;gap:3px;box-shadow:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;cursor:default;user-select:none;white-space:nowrap;"><span id="win-weather">🌤 —°C</span></div>
