@@ -23,6 +23,8 @@
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4lxZ86Va8bGBL3y-If7KKsoxKKhAoe9T05Koqw2ieRiME6nU9HHytXbLnBHbCC1gzpw/exec"; // URL /exec del Web App de Apps Script (la pegas tú)
   const SHARED_TOKEN    = "8899"; // token compartido; debe coincidir con el del script
   const BACKUP_FOLDER   = "Respaldo Reportes App Finanzas"; // carpeta en Drive (se fija en el script)
+  const ACCESS_PIN      = "8899"; // PIN al abrir (igual que el Panel). Visible en el código público: es candado casual.
+  const LOCK_MINUTES    = 5;      // re-pide el PIN tras N minutos de inactividad
   /* ================================================================== */
 </script>
 
@@ -605,10 +607,43 @@ body::before{
 .mvtxt b{color:var(--cream);font-weight:normal;}
 .mvsub{font-size:10px;color:var(--dimgold);}
 .hdet{font-size:11px;color:var(--dimgold);margin-top:2px;}
+
+/* --- PIN de acceso (candado al abrir, estilo Panel) --- */
+#mc-gate{position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;align-items:center;justify-content:center;
+  padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));}
+.mc-gate-box{border:1px solid var(--line2);width:100%;max-width:330px;background:#000;box-shadow:0 0 34px rgba(120,130,255,.18);}
+.mc-gate-tb{border-bottom:1px solid var(--line2);padding:7px 10px;font-size:13px;letter-spacing:2px;color:var(--gold);}
+.mc-gate-body{padding:26px 18px;text-align:center;}
+.mc-gate-ttl{font-family:"VT323",monospace;font-size:32px;letter-spacing:5px;color:var(--cream);line-height:1;text-shadow:0 0 12px rgba(245,231,198,.3);}
+.mc-gate-sub{color:var(--dimgold);font-size:12px;letter-spacing:4px;margin:7px 0 22px;}
+.mc-gate-ask{color:var(--dimgold);font-size:12px;letter-spacing:2px;margin-bottom:12px;}
+#mc-pin{background:#000;border:1px solid var(--line2);color:var(--cream);font-family:"VT323",monospace;font-size:28px;
+  text-align:center;letter-spacing:14px;width:190px;padding:10px 6px 10px 20px;outline:none;caret-color:var(--cream);}
+#mc-pin:focus{border-color:var(--amber);}
+#mc-pin-btn{margin-top:16px;background:#000;color:var(--cream);border:1px solid var(--line2);font-family:"Share Tech Mono",monospace;
+  font-size:14px;letter-spacing:4px;padding:11px 26px;cursor:pointer;width:190px;}
+#mc-pin-btn:active{background:var(--cream);color:#000;}
+.mc-gate-err{color:var(--red);font-size:13px;letter-spacing:1px;height:16px;margin-top:12px;}
 </style>
 </head>
 <body>
 <svg class="fx-defs" width="0" height="0" aria-hidden="true" style="position:absolute"><defs><filter id="fx-chroma" x="-3%" y="-3%" width="106%" height="106%"><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/><feOffset in="r" dx="-0.9" dy="0" result="ro"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/><feOffset in="b" dx="0.9" dy="0" result="bo"/><feBlend in="ro" in2="g" mode="screen" result="rg"/><feBlend in="rg" in2="bo" mode="screen"/></filter></defs></svg>
+
+<!-- PIN de acceso (candado al abrir, re-bloqueo por inactividad) -->
+<div id="mc-gate">
+  <div class="mc-gate-box">
+    <div class="mc-gate-tb">MONEY COACH · ACCESO</div>
+    <div class="mc-gate-body">
+      <div class="mc-gate-ttl">MONEY COACH</div>
+      <div class="mc-gate-sub">KS-020 · FINANZAS</div>
+      <div class="mc-gate-ask">&gt; INGRESA TU CÓDIGO</div>
+      <input id="mc-pin" type="tel" inputmode="numeric" maxlength="4" placeholder="····" autocomplete="off">
+      <button id="mc-pin-btn">ENTRAR</button>
+      <div class="mc-gate-err" id="mc-pin-err"></div>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- TELEMETRÍA -->
@@ -1525,6 +1560,37 @@ autoBackup();
   var crt=document.getElementById("fxp-crt");
   crt.oninput=function(){ cfg.crt=+crt.value; apply(); save(); };
   apply();
+})();
+</script>
+<script>
+/* ===== PIN de acceso + auto-bloqueo por inactividad (estilo Panel) ===== */
+(function(){
+  var PIN = (typeof ACCESS_PIN!=="undefined") ? ACCESS_PIN : "8899";
+  var MINS = (typeof LOCK_MINUTES!=="undefined") ? LOCK_MINUTES : 5;
+  var KEY = "mc_unlock";
+  var LOCK_MS = MINS*60*1000;
+  var gate=document.getElementById("mc-gate");
+  var inp=document.getElementById("mc-pin");
+  var err=document.getElementById("mc-pin-err");
+  var btn=document.getElementById("mc-pin-btn");
+  var timer=null;
+  function arm(){ clearTimeout(timer); timer=setTimeout(lock, LOCK_MS); }
+  function lock(){ try{sessionStorage.removeItem(KEY);}catch(e){} clearTimeout(timer);
+    gate.style.display="flex"; inp.value=""; err.textContent="";
+    setTimeout(function(){ try{inp.focus();}catch(e){} },60); }
+  function unlock(){ gate.style.display="none"; arm(); }
+  function tryPin(){ if(inp.value===PIN){ try{sessionStorage.setItem(KEY,"1");}catch(e){} unlock(); }
+    else { err.textContent="> CÓDIGO INCORRECTO"; inp.value=""; } }
+  if(btn) btn.onclick=tryPin;
+  if(inp){
+    inp.addEventListener("keydown",function(e){ if(e.key==="Enter") tryPin(); });
+    inp.addEventListener("input",function(){ err.textContent=""; if(inp.value.length>=String(PIN).length) tryPin(); });
+  }
+  ["touchstart","pointerdown","keydown","click"].forEach(function(ev){
+    document.addEventListener(ev,function(){ if(gate && gate.style.display==="none") arm(); },{passive:true});
+  });
+  var ok=false; try{ ok=sessionStorage.getItem(KEY)==="1"; }catch(e){}
+  if(ok){ unlock(); } else { lock(); }
 })();
 </script>
 </body>
