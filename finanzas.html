@@ -650,7 +650,7 @@ body::before{
   <div class="telem">
     <div class="telem-top">
       <div class="clkbox">
-        <span class="kb">KS-020</span>
+        <span class="kb" id="t-ver">v19</span>
         <span class="clk" id="t-clock">--:--:--</span>
       </div>
       <div class="banner" id="t-banner">
@@ -1381,6 +1381,7 @@ function autoBackup(){
   // al abrir la app: si hay backend y no se respaldó hoy, manda 1 .txt en silencio (sin gesto)
   if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL==="PENDIENTE") return;
   if(DB._lastBackup===todayISO()) return;
+  if(!DB.history || DB.history.length===0) return; // no respaldar estados vacíos/de ejemplo (evita pisar un respaldo bueno)
   postBackup(buildReport());
 }
 function loadFromDrive(){
@@ -1512,6 +1513,7 @@ document.querySelectorAll(".tab").forEach(t=>{
 /* arranque */
 render();
 autoBackup();
+(function(){ var v=document.getElementById("t-ver"); if(v && typeof APP_VERSION!=="undefined") v.textContent=APP_VERSION; })();
 </script>
 
 <button id="fxp-open" aria-label="Ajuste visual FX">FX</button>
