@@ -25,6 +25,7 @@
   const BACKUP_FOLDER   = "Respaldo Reportes App Finanzas"; // carpeta en Drive (se fija en el script)
   const ACCESS_PIN      = "8899"; // PIN al abrir (igual que el Panel). Visible en el código público: es candado casual.
   const LOCK_MINUTES    = 5;      // re-pide el PIN tras N minutos de inactividad
+  const APP_VERSION     = "v19";  // versión visible de la app (para el botón Actualizar)
   /* ================================================================== */
 </script>
 
@@ -1091,7 +1092,9 @@ function renderAjustes(){
     <input type="file" id="file-import" accept=".txt,.json,text/plain,application/json" class="hidden">
 
     <div class="subhdr">Datos</div>
-    <div class="hint" style="margin:0 2px 8px">Versión datos: ${DB.version} · clave: ${STORAGE_KEY} · ${DB.history.length} movimientos</div>
+    <div class="hint" style="margin:0 2px 8px">App: <b>${APP_VERSION}</b> · datos v${DB.version} · clave: ${STORAGE_KEY} · ${DB.history.length} movimientos</div>
+    <div class="btnrow"><button class="btn cyan wide" id="btn-update">↻ ACTUALIZAR APP A LA ÚLTIMA VERSIÓN</button></div>
+    <div class="hint" style="margin:0 2px 12px">Baja la versión más reciente publicada (limpia el caché y recarga). NO borra tus datos.</div>
     <div class="btnrow"><button class="btn red wide" id="btn-reset">⟲ RESTAURAR DATOS DE FÁBRICA</button></div>
     <div class="hint" style="margin:8px 2px">La app no almacena contraseñas, NIP, CVV ni número completo de tarjeta. Único dato sensible opcional: CLABE/cuenta de pago.</div>
   `;
@@ -1101,6 +1104,7 @@ function renderAjustes(){
   document.getElementById("btn-export").onclick=downloadJSON;
   document.getElementById("btn-import").onclick=()=>document.getElementById("file-import").click();
   document.getElementById("file-import").onchange=importJSON;
+  document.getElementById("btn-update").onclick=updateApp;
   document.getElementById("btn-reset").onclick=()=>{
     if(confirm("¿Restaurar datos iniciales? Se perderá lo capturado.")){ DB=seedData(); save(); render(); toast("DATOS RESTAURADOS"); }
   };
@@ -1323,6 +1327,15 @@ function buildReport(){
   L.push("@@JSON@@ (no editar - permite restaurar al importar)");
   L.push(JSON.stringify(ex));
   return L.join("\n");
+}
+async function updateApp(){
+  if(!confirm("¿Buscar la última versión publicada? Tus datos NO se borran.")) return;
+  toast("ACTUALIZANDO...");
+  try{
+    if("serviceWorker" in navigator){ const rs=await navigator.serviceWorker.getRegistrations(); for(const r of rs){ try{ await r.unregister(); }catch(e){} } }
+    if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
+  }catch(e){}
+  location.replace(location.origin+location.pathname+"?u="+Date.now()); // recarga sin caché; localStorage (tus datos) se conserva
 }
 function downloadJSON(){
   const blob=new Blob([JSON.stringify(buildExport(),null,2)],{type:"application/json"});
