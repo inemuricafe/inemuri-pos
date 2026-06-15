@@ -677,7 +677,7 @@ body::before{
 
   <div class="irail" aria-hidden="true">
     <div class="irail-scope"></div>
-    <div class="irail-data"><div class="trk"><span>SYS.OK // BUS:MIL-1553 // 0x7F2A // 24.07 KM/S // LUT:USR/USR // CRC:0FA3 // NODE:KS-020 // MEM:776173 // SIG:LOW // PSA:792 // INPU:1/1 // 11-10-01 // </span><span>SYS.OK // BUS:MIL-1553 // 0x7F2A // 24.07 KM/S // LUT:USR/USR // CRC:0FA3 // NODE:KS-020 // MEM:776173 // SIG:LOW // PSA:792 // INPU:1/1 // 11-10-01 // </span></div></div>
+    <div class="irail-data"><div class="trk" id="trk"><span>SYS.OK // BUS:MIL-1553 // 0x7F2A // 24.07 KM/S // LUT:USR/USR // CRC:0FA3 // NODE:KS-020 // MEM:776173 // SIG:LOW // PSA:792 // INPU:1/1 // 11-10-01 // </span><span>SYS.OK // BUS:MIL-1553 // 0x7F2A // 24.07 KM/S // LUT:USR/USR // CRC:0FA3 // NODE:KS-020 // MEM:776173 // SIG:LOW // PSA:792 // INPU:1/1 // 11-10-01 // </span></div></div>
     <div class="irail-pips"><i></i><i></i><i></i><i class="off"></i><span class="rec">REC</span></div>
   </div>
 
@@ -1384,6 +1384,42 @@ function autoBackup(){
   if(!DB.history || DB.history.length===0) return; // no respaldar estados vacíos/de ejemplo (evita pisar un respaldo bueno)
   postBackup(buildReport());
 }
+function loadTicker(){
+  // Titulares de México (Google News RSS) mezclados con la telemetría retro.
+  // Vía relevos públicos con CORS (sin permisos): rss2json (JSON) y, de respaldo, allorigins (XML).
+  var feed="https://news.google.com/rss?hl=es-419&gl=MX&ceid=MX:es-419";
+  var srcs=[
+    {u:"https://api.rss2json.com/v1/api.json?rss_url="+encodeURIComponent(feed), type:"json"},
+    {u:"https://api.allorigins.win/raw?url="+encodeURIComponent(feed), type:"xml"}
+  ];
+  function paint(heads){
+    if(!heads || !heads.length) return false;
+    var toks=["SYS.OK","BUS:MIL-1553","0x7F2A","CRC:0FA3","SIG:LOW","NODE:KS-020","PSA:792","INPU:1/1"];
+    var parts=[];
+    heads.slice(0,12).forEach(function(h,i){ parts.push(toks[i%toks.length]); parts.push("▸ "+h); });
+    var txt=parts.join(" // ")+" // ";
+    var trk=document.getElementById("trk");
+    if(trk){ trk.innerHTML="<span>"+esc(txt)+"</span><span>"+esc(txt)+"</span>"; return true; }
+    return false;
+  }
+  function tryAt(i){
+    if(i>=srcs.length) return; // se quedan la telemetría retro
+    var src=srcs[i];
+    fetch(src.u).then(function(r){ return src.type==="json"? r.json() : r.text(); }).then(function(data){
+      var heads=[], k;
+      if(src.type==="json"){
+        var items=(data && data.items)||[];
+        for(k=0;k<items.length && heads.length<12;k++){ if(items[k] && items[k].title) heads.push(String(items[k].title).trim()); }
+      } else {
+        var doc=new DOMParser().parseFromString(data,"text/xml");
+        var t=doc.querySelectorAll("item > title");
+        for(k=0;k<t.length && heads.length<12;k++){ var s=t[k].textContent.trim(); if(s) heads.push(s); }
+      }
+      if(!paint(heads)) tryAt(i+1);
+    }).catch(function(){ tryAt(i+1); });
+  }
+  tryAt(0);
+}
 function loadFromDrive(){
   if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL==="PENDIENTE"){ toast("SIN BACKEND","err"); return; }
   if(!confirm("¿Cargar el último respaldo de Drive y REEMPLAZAR los datos de este dispositivo? (No trae los números de cuenta)")) return;
@@ -1514,6 +1550,7 @@ document.querySelectorAll(".tab").forEach(t=>{
 render();
 autoBackup();
 (function(){ var v=document.getElementById("t-ver"); if(v && typeof APP_VERSION!=="undefined") v.textContent=APP_VERSION; })();
+loadTicker();
 </script>
 
 <button id="fxp-open" aria-label="Ajuste visual FX">FX</button>
