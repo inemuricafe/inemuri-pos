@@ -1043,8 +1043,11 @@ function renderAjustes(){
     </div>
     <div class="hint" style="margin:0 2px 14px">Apagado: el export OMITE todas las CLABEs. Enciéndelo solo si quieres respaldar también las cuentas de pago.</div>
 
-    <div class="btnrow"><button class="btn wide" id="btn-send">▲ ENVIAR RESPALDO (iCloud)</button></div>
-    <div class="hint" style="margin:0 2px 14px">Respaldo automático: al abrir, la app envía 1 archivo .txt diario con todos tus datos a Google Drive (carpeta <b>${BACKUP_FOLDER}</b>) vía Apps Script. Backend: <b style="color:${APPS_SCRIPT_URL==='PENDIENTE'?'var(--red)':'var(--cream)'}">${APPS_SCRIPT_URL==='PENDIENTE'?'PENDIENTE (pega la URL)':'configurado'}</b> · Último respaldo: <b>${DB._lastBackup||'—'}</b>. Toca el botón para respaldar al instante.</div>
+    <div class="btnrow">
+      <button class="btn wide" id="btn-send">▲ ENVIAR A DRIVE</button>
+      <button class="btn cyan wide" id="btn-load">▼ CARGAR DE DRIVE</button>
+    </div>
+    <div class="hint" style="margin:0 2px 14px">Respaldo automático: al abrir, la app envía 1 archivo .txt diario con todos tus datos a Google Drive (carpeta <b>${BACKUP_FOLDER}</b>). Backend: <b style="color:${APPS_SCRIPT_URL==='PENDIENTE'?'var(--red)':'var(--cream)'}">${APPS_SCRIPT_URL==='PENDIENTE'?'PENDIENTE (pega la URL)':'configurado'}</b> · Último: <b>${DB._lastBackup||'—'}</b>. «Enviar» respalda al instante; <b>«Cargar de Drive»</b> trae el último respaldo a este equipo (reemplaza lo local; no incluye los números de cuenta).</div>
 
     <div class="btnrow">
       <button class="btn cyan wide" id="btn-export">⤓ DESCARGAR JSON</button>
@@ -1059,6 +1062,7 @@ function renderAjustes(){
   `;
   document.getElementById("tg-clabe").onclick=()=>{DB.settings.includeClabes=!DB.settings.includeClabes;save();renderAjustes();};
   document.getElementById("btn-send").onclick=sendBackup;
+  document.getElementById("btn-load").onclick=loadFromDrive;
   document.getElementById("btn-export").onclick=downloadJSON;
   document.getElementById("btn-import").onclick=()=>document.getElementById("file-import").click();
   document.getElementById("file-import").onchange=importJSON;
@@ -1331,6 +1335,27 @@ function autoBackup(){
   if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL==="PENDIENTE") return;
   if(DB._lastBackup===todayISO()) return;
   postBackup(buildReport());
+}
+function loadFromDrive(){
+  if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL==="PENDIENTE"){ toast("SIN BACKEND","err"); return; }
+  if(!confirm("¿Cargar el último respaldo de Drive y REEMPLAZAR los datos de este dispositivo? (No trae los números de cuenta)")) return;
+  toast("CARGANDO DESDE DRIVE...");
+  const cb="__mc_cb_"+Date.now();
+  const s=document.createElement("script");
+  let done=false;
+  const cleanup=()=>{ try{delete window[cb];}catch(e){} if(s.parentNode) s.parentNode.removeChild(s); };
+  window[cb]=function(resp){
+    done=true;
+    try{
+      if(!resp || resp.error || !resp.data){ toast("NO HAY RESPALDO EN DRIVE","err"); }
+      else { DB=migrate(resp.data); save(); render(); toast("DATOS CARGADOS DE DRIVE ✔"); }
+    }catch(e){ toast("RESPALDO INVÁLIDO","err"); }
+    cleanup();
+  };
+  s.onerror=function(){ if(!done){ toast("ERROR DE RED","err"); cleanup(); } };
+  s.src=APPS_SCRIPT_URL+"?action=latest&token="+encodeURIComponent(SHARED_TOKEN)+"&callback="+cb+"&t="+Date.now();
+  document.body.appendChild(s);
+  setTimeout(()=>{ if(!done){ toast("SIN RESPUESTA DE DRIVE","err"); cleanup(); } }, 15000);
 }
 async function sendBackup(){
   const txt=buildReport();
